@@ -763,29 +763,215 @@ end)
 -- ============================================
 -- ADMIN / DEBUG
 -- ============================================
+
+-- /giveitem [player_id] [item_name] [count]
+-- Admin command to give items to any player
+-- Example: /giveitem 1 water 5
 RegisterCommand('giveitem', function(source, args)
-    if source == 0 then return end -- console only or admin check
     local src = source
-    local xPlayer = ESX.GetPlayerFromId(src)
-    if not xPlayer or xPlayer.getGroup() ~= 'admin' then return end
+
+    -- Allow from console (src == 0) or from admin players
+    if src ~= 0 then
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if not xPlayer or xPlayer.getGroup() ~= 'admin' then
+            TriggerClientEvent('esx:showNotification', src, '~r~No permission')
+            return
+        end
+    end
 
     local targetId = tonumber(args[1])
     local itemName = args[2]
     local count = tonumber(args[3]) or 1
 
-    if not targetId or not itemName or not Items[itemName] then
-        TriggerClientEvent('esx:showNotification', src, 'Usage: /giveitem [id] [item] [count]')
+    if not targetId or not itemName then
+        local msg = 'Usage: /giveitem [player_id] [item_name] [count]'
+        if src == 0 then
+            print(msg)
+        else
+            TriggerClientEvent('esx:showNotification', src, msg)
+        end
+        return
+    end
+
+    if not Items[itemName] then
+        local msg = 'Unknown item: "' .. itemName .. '". Check items.lua for valid item names (the key, not the label).'
+        if src == 0 then
+            print(msg)
+        else
+            TriggerClientEvent('esx:showNotification', src, '~r~' .. msg)
+        end
         return
     end
 
     local targetPlayer = ESX.GetPlayerFromId(targetId)
-    if not targetPlayer then return end
+    if not targetPlayer then
+        local msg = 'Player ID ' .. targetId .. ' not found'
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, '~r~' .. msg) end
+        return
+    end
 
     local success = exports['cnbt-inventory']:AddItem(targetPlayer.identifier, itemName, count)
     if success then
-        TriggerClientEvent('esx:showNotification', src, 'Item given successfully')
+        local def = Items[itemName]
+        local msg = 'Gave ' .. count .. 'x ' .. def.label .. ' (' .. itemName .. ') to player ' .. targetId
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, '~g~' .. msg) end
+        TriggerClientEvent('esx:showNotification', targetId, '~g~Received ' .. count .. 'x ' .. def.label)
     else
-        TriggerClientEvent('esx:showNotification', src, 'Failed to give item (no space?)')
+        local msg = 'Failed: no space in inventory for ' .. itemName
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, '~r~' .. msg) end
+    end
+end, false)
+
+-- /additem [item_name] [count]
+-- Admin shortcut to give items to yourself
+-- Example: /additem weapon_rifle 1
+RegisterCommand('additem', function(source, args)
+    local src = source
+    if src == 0 then
+        print('Cannot use /additem from console. Use /giveitem instead.')
+        return
+    end
+
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer or xPlayer.getGroup() ~= 'admin' then
+        TriggerClientEvent('esx:showNotification', src, '~r~No permission')
+        return
+    end
+
+    local itemName = args[1]
+    local count = tonumber(args[2]) or 1
+
+    if not itemName then
+        TriggerClientEvent('esx:showNotification', src, 'Usage: /additem [item_name] [count]')
+        return
+    end
+
+    if not Items[itemName] then
+        TriggerClientEvent('esx:showNotification', src, '~r~Unknown item: "' .. itemName .. '"')
+        return
+    end
+
+    local success = exports['cnbt-inventory']:AddItem(xPlayer.identifier, itemName, count)
+    if success then
+        local def = Items[itemName]
+        TriggerClientEvent('esx:showNotification', src, '~g~Added ' .. count .. 'x ' .. def.label .. ' (' .. itemName .. ')')
+    else
+        TriggerClientEvent('esx:showNotification', src, '~r~No space in inventory')
+    end
+end, false)
+
+-- /removeitem [player_id] [item_name] [count]
+-- Admin command to remove items from a player
+RegisterCommand('removeitem', function(source, args)
+    local src = source
+
+    if src ~= 0 then
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if not xPlayer or xPlayer.getGroup() ~= 'admin' then
+            TriggerClientEvent('esx:showNotification', src, '~r~No permission')
+            return
+        end
+    end
+
+    local targetId = tonumber(args[1])
+    local itemName = args[2]
+    local count = tonumber(args[3]) or 1
+
+    if not targetId or not itemName then
+        local msg = 'Usage: /removeitem [player_id] [item_name] [count]'
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, msg) end
+        return
+    end
+
+    local targetPlayer = ESX.GetPlayerFromId(targetId)
+    if not targetPlayer then
+        local msg = 'Player ID ' .. targetId .. ' not found'
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, '~r~' .. msg) end
+        return
+    end
+
+    local success = exports['cnbt-inventory']:RemoveItem(targetPlayer.identifier, itemName, count)
+    if success then
+        local def = Items[itemName]
+        local label = def and def.label or itemName
+        local msg = 'Removed ' .. count .. 'x ' .. label .. ' from player ' .. targetId
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, '~g~' .. msg) end
+    else
+        local msg = 'Player does not have enough of that item'
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, '~r~' .. msg) end
+    end
+end, false)
+
+-- /clearinv [player_id]
+-- Admin command to clear a player's inventory
+RegisterCommand('clearinv', function(source, args)
+    local src = source
+
+    if src ~= 0 then
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if not xPlayer or xPlayer.getGroup() ~= 'admin' then
+            TriggerClientEvent('esx:showNotification', src, '~r~No permission')
+            return
+        end
+    end
+
+    local targetId = tonumber(args[1])
+    if not targetId then
+        local msg = 'Usage: /clearinv [player_id]'
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, msg) end
+        return
+    end
+
+    local targetPlayer = ESX.GetPlayerFromId(targetId)
+    if not targetPlayer then
+        local msg = 'Player ID ' .. targetId .. ' not found'
+        if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, '~r~' .. msg) end
+        return
+    end
+
+    exports['cnbt-inventory']:ClearInventory(targetPlayer.identifier)
+    local msg = 'Cleared inventory of player ' .. targetId
+    if src == 0 then print(msg) else TriggerClientEvent('esx:showNotification', src, '~g~' .. msg) end
+    TriggerClientEvent('esx:showNotification', targetId, '~r~Your inventory has been cleared by an admin')
+end, false)
+
+-- /listitems
+-- Shows all registered item names (for reference when using /giveitem)
+RegisterCommand('listitems', function(source, args)
+    local src = source
+
+    if src ~= 0 then
+        local xPlayer = ESX.GetPlayerFromId(src)
+        if not xPlayer or xPlayer.getGroup() ~= 'admin' then
+            TriggerClientEvent('esx:showNotification', src, '~r~No permission')
+            return
+        end
+    end
+
+    local filter = args[1] -- optional category filter
+
+    local lines = {}
+    for name, def in pairs(Items) do
+        if not filter or def.category == filter then
+            table.insert(lines, string.format('  %s -> %s [%dx%d] (%s)', name, def.label, def.sizeX, def.sizeY, def.category))
+        end
+    end
+
+    table.sort(lines)
+
+    if src == 0 then
+        print('=== Registered Items ===')
+        for _, line in ipairs(lines) do
+            print(line)
+        end
+        print('Total: ' .. #lines .. ' items')
+    else
+        -- Send as chat messages
+        TriggerClientEvent('chat:addMessage', src, { args = { '^3=== Items (' .. #lines .. ') ===' } })
+        for _, line in ipairs(lines) do
+            TriggerClientEvent('chat:addMessage', src, { args = { '^2' .. line } })
+        end
+        TriggerClientEvent('chat:addMessage', src, { args = { '^3Filter by category: /listitems [medical|food|weapon|ammo|backpack|misc]' } })
     end
 end, false)
 
