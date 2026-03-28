@@ -1,0 +1,435 @@
+--[[
+    Item Definitions
+
+    Each item has:
+    - label:       Display name
+    - description: Tooltip text
+    - weight:      Weight in grams
+    - sizeX:       Grid width (cells)
+    - sizeY:       Grid height (cells)
+    - stackable:   Whether items can stack in one slot
+    - maxStack:    Maximum stack count (only if stackable)
+    - usable:      Whether the item can be "used" (right click -> use)
+    - image:       Image filename in html/img/
+    - category:    Category for organization
+]]
+
+Items = {}
+
+-- ============================================
+-- MEDICAL
+-- ============================================
+Items['bandage'] = {
+    label       = 'Bandage',
+    description = 'A basic bandage for treating minor wounds.',
+    weight      = 200,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 3,
+    usable      = true,
+    image       = 'bandage.png',
+    category    = 'medical',
+}
+
+Items['lblood'] = {
+    label       = 'Large Blood Bag',
+    description = 'A large blood bag for major blood loss.',
+    weight      = 800,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = true,
+    maxStack    = 2,
+    usable      = true,
+    image       = 'lblood.png',
+    category    = 'medical',
+}
+
+Items['sblood'] = {
+    label       = 'Small Blood Bag',
+    description = 'A small blood bag for minor blood loss.',
+    weight      = 400,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'sblood.png',
+    category    = 'medical',
+}
+
+Items['surkit'] = {
+    label       = 'Surgical Kit',
+    description = 'A surgical kit for advanced medical procedures.',
+    weight      = 1200,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'surkit.png',
+    category    = 'medical',
+}
+
+Items['splint'] = {
+    label       = 'Splint',
+    description = 'A splint for stabilizing fractures.',
+    weight      = 300,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = true,
+    maxStack    = 4,
+    usable      = true,
+    image       = 'splint.png',
+    category    = 'medical',
+}
+
+Items['crp'] = {
+    label       = 'CRP Kit',
+    description = 'Chest repair kit for critical injuries.',
+    weight      = 500,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = true,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'crp.png',
+    category    = 'medical',
+}
+
+Items['ct'] = {
+    label       = 'Chest Tube',
+    description = 'A chest tube for treating pneumothorax.',
+    weight      = 350,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 4,
+    usable      = true,
+    image       = 'ct.png',
+    category    = 'medical',
+}
+
+Items['ibalin'] = {
+    label       = 'Ibalin',
+    description = 'Pain relief medication.',
+    weight      = 100,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 2,
+    usable      = true,
+    image       = 'ibalin.png',
+    category    = 'medical',
+}
+
+-- ============================================
+-- FOOD & DRINK
+-- ============================================
+Items['water'] = {
+    label       = 'Water',
+    description = 'A bottle of fresh water.',
+    weight      = 500,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = true,
+    maxStack    = 3,
+    usable      = true,
+    image       = 'water.png',
+    category    = 'food',
+}
+
+Items['bread'] = {
+    label       = 'Bread',
+    description = 'A loaf of bread.',
+    weight      = 300,
+    sizeX       = 2,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 3,
+    usable      = true,
+    image       = 'bread.png',
+    category    = 'food',
+}
+
+Items['energy_drink'] = {
+    label       = 'Energy Drink',
+    description = 'Gives a temporary stamina boost.',
+    weight      = 350,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 5,
+    usable      = true,
+    image       = 'energy_drink.png',
+    category    = 'food',
+}
+
+Items['canned_food'] = {
+    label       = 'Canned Food',
+    description = 'A can of preserved food.',
+    weight      = 400,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 4,
+    usable      = true,
+    image       = 'canned_food.png',
+    category    = 'food',
+}
+
+-- ============================================
+-- WEAPONS & AMMO
+-- ============================================
+Items['weapon_pistol'] = {
+    label       = 'Pistol',
+    description = 'A standard 9mm handgun.',
+    weight      = 1200,
+    sizeX       = 2,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'weapon_pistol.png',
+    category    = 'weapon',
+}
+
+Items['weapon_smg'] = {
+    label       = 'SMG',
+    description = 'A compact submachine gun.',
+    weight      = 2500,
+    sizeX       = 3,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'weapon_smg.png',
+    category    = 'weapon',
+}
+
+Items['weapon_rifle'] = {
+    label       = 'Assault Rifle',
+    description = 'A 5.56x45mm assault rifle.',
+    weight      = 3500,
+    sizeX       = 5,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'weapon_rifle.png',
+    category    = 'weapon',
+}
+
+Items['weapon_shotgun'] = {
+    label       = 'Shotgun',
+    description = 'A 12 gauge pump-action shotgun.',
+    weight      = 3800,
+    sizeX       = 5,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'weapon_shotgun.png',
+    category    = 'weapon',
+}
+
+Items['weapon_knife'] = {
+    label       = 'Knife',
+    description = 'A sharp combat knife.',
+    weight      = 400,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'weapon_knife.png',
+    category    = 'weapon',
+}
+
+Items['ammo_9mm'] = {
+    label       = '9mm Ammo',
+    description = 'A box of 9mm ammunition.',
+    weight      = 300,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 60,
+    usable      = false,
+    image       = 'ammo_9mm.png',
+    category    = 'ammo',
+}
+
+Items['ammo_556'] = {
+    label       = '5.56x45mm Ammo',
+    description = 'A magazine of 5.56x45mm ammunition.',
+    weight      = 400,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = true,
+    maxStack    = 30,
+    usable      = false,
+    image       = 'ammo_556.png',
+    category    = 'ammo',
+}
+
+Items['ammo_12g'] = {
+    label       = '12 Gauge Shells',
+    description = 'A box of 12 gauge shotgun shells.',
+    weight      = 500,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 16,
+    usable      = false,
+    image       = 'ammo_12g.png',
+    category    = 'ammo',
+}
+
+-- ============================================
+-- BACKPACKS
+-- ============================================
+Items['backpack_small'] = {
+    label       = 'Small Backpack',
+    description = 'A small backpack with limited storage.',
+    weight      = 1000,
+    sizeX       = 2,
+    sizeY       = 3,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'backpack_small.png',
+    category    = 'backpack',
+}
+
+Items['backpack_medium'] = {
+    label       = 'Medium Backpack',
+    description = 'A medium-sized backpack with decent storage.',
+    weight      = 1500,
+    sizeX       = 3,
+    sizeY       = 3,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'backpack_medium.png',
+    category    = 'backpack',
+}
+
+Items['backpack_large'] = {
+    label       = 'Large Backpack',
+    description = 'A large backpack with plenty of storage.',
+    weight      = 2000,
+    sizeX       = 3,
+    sizeY       = 4,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'backpack_large.png',
+    category    = 'backpack',
+}
+
+Items['backpack_tactical'] = {
+    label       = 'Tactical Backpack',
+    description = 'A military-grade tactical backpack.',
+    weight      = 2500,
+    sizeX       = 3,
+    sizeY       = 4,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'backpack_tactical.png',
+    category    = 'backpack',
+}
+
+-- ============================================
+-- TOOLS & MISC
+-- ============================================
+Items['phone'] = {
+    label       = 'Phone',
+    description = 'A mobile phone.',
+    weight      = 200,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'phone.png',
+    category    = 'misc',
+}
+
+Items['radio'] = {
+    label       = 'Radio',
+    description = 'A portable radio for communication.',
+    weight      = 500,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'radio.png',
+    category    = 'misc',
+}
+
+Items['lockpick'] = {
+    label       = 'Lockpick',
+    description = 'A tool for picking locks.',
+    weight      = 150,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 5,
+    usable      = true,
+    image       = 'lockpick.png',
+    category    = 'misc',
+}
+
+Items['flashlight'] = {
+    label       = 'Flashlight',
+    description = 'A handheld flashlight.',
+    weight      = 300,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'flashlight.png',
+    category    = 'misc',
+}
+
+Items['rope'] = {
+    label       = 'Rope',
+    description = 'A sturdy rope, useful for various tasks.',
+    weight      = 800,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'rope.png',
+    category    = 'misc',
+}
+
+Items['id_card'] = {
+    label       = 'ID Card',
+    description = 'Your identification card.',
+    weight      = 50,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'id_card.png',
+    category    = 'misc',
+}
+
+Items['money_bag'] = {
+    label       = 'Money Bag',
+    description = 'A bag full of cash.',
+    weight      = 1000,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'money_bag.png',
+    category    = 'misc',
+}

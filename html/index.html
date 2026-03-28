@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNBT Inventory</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="inventory-container" class="hidden">
+        <!-- Top bar -->
+        <div id="top-bar">
+            <div id="hotbar">
+                <!-- Filled dynamically -->
+            </div>
+            <div id="sort-buttons">
+                <button id="btn-sort-v" title="Sort Vertical">&#8597;</button>
+                <button id="btn-sort-h" title="Sort Horizontal">&#8596;</button>
+            </div>
+        </div>
+
+        <div id="inventory-panels">
+            <!-- Player inventory panel -->
+            <div id="player-panel" class="inv-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Inventory</span>
+                    <span id="player-weight" class="weight-info">0 / 0 g</span>
+                </div>
+                <div id="player-grid" class="grid-container"></div>
+
+                <!-- Backpack section -->
+                <div id="backpack-section">
+                    <div id="backpack-slot-container">
+                        <div class="panel-header">
+                            <span class="panel-title">Backpack</span>
+                        </div>
+                        <div id="backpack-slot" class="backpack-drop-zone">
+                            <span class="empty-text">Drag backpack here</span>
+                        </div>
+                    </div>
+                    <div id="backpack-grid-container" class="hidden">
+                        <div class="panel-header">
+                            <span class="panel-title" id="backpack-label">Backpack</span>
+                            <span id="backpack-weight" class="weight-info">0 / 0 g</span>
+                        </div>
+                        <div id="backpack-grid" class="grid-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- External inventory panel (stash/vehicle/drop) -->
+            <div id="external-panel" class="inv-panel hidden">
+                <div class="panel-header">
+                    <span class="panel-title" id="external-label">Storage</span>
+                    <span id="external-weight" class="weight-info">0 / 0 g</span>
+                </div>
+                <div id="external-grid" class="grid-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context menu -->
+    <div id="context-menu" class="hidden">
+        <!-- Filled dynamically -->
+    </div>
+
+    <!-- Split dialog -->
+    <div id="split-dialog" class="hidden">
+        <div class="split-content">
+            <h3>Split Stack</h3>
+            <div class="split-info">
+                <span id="split-item-name"></span>
+                <span id="split-total"></span>
+            </div>
+            <input type="range" id="split-slider" min="1" max="1" value="1">
+            <div class="split-counts">
+                <span id="split-left">0</span>
+                <span id="split-right">0</span>
+            </div>
+            <div class="split-buttons">
+                <button id="split-confirm">Confirm</button>
+                <button id="split-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="hidden">
+        <div id="tooltip-name"></div>
+        <div id="tooltip-desc"></div>
+        <div id="tooltip-info"></div>
+    </div>
+
+    <!-- Drag ghost (absolutely positioned, moved via transform) -->
+    <div id="drag-ghost" class="hidden"></div>
+
+    <!-- Grid highlight overlay cells (reused pool) -->
+    <div id="highlight-pool"></div>
+
+    <script src="js/grid.js"></script>
+    <script src="js/drag.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

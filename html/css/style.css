@@ -1,0 +1,633 @@
+/* ============================================
+   CNBT Inventory - Tetris Grid System
+   Optimized for 60fps: GPU-composited transforms,
+   minimal reflows, will-change hints
+   ============================================ */
+
+:root {
+    --cell-size: 60px;
+    --cell-gap: 2px;
+    --bg-dark: rgba(15, 15, 15, 0.92);
+    --bg-panel: rgba(25, 25, 25, 0.95);
+    --bg-cell: rgba(45, 45, 45, 0.7);
+    --bg-cell-hover: rgba(65, 65, 65, 0.8);
+    --border-color: rgba(80, 80, 80, 0.6);
+    --accent: #4a9eff;
+    --accent-glow: rgba(74, 158, 255, 0.3);
+    --success: #4aff7e;
+    --success-glow: rgba(74, 255, 126, 0.25);
+    --danger: #ff4a4a;
+    --danger-glow: rgba(255, 74, 74, 0.25);
+    --text-primary: #e0e0e0;
+    --text-secondary: #888;
+    --text-dim: #555;
+    --hotbar-bg: rgba(30, 30, 30, 0.9);
+    --tooltip-bg: rgba(10, 10, 10, 0.96);
+    --ctx-bg: rgba(20, 20, 20, 0.97);
+    --transition-fast: 0.12s;
+    --transition-med: 0.2s;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--text-primary);
+    background: transparent;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ============================================
+   LAYOUT
+   ============================================ */
+
+#inventory-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+#top-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 12px;
+}
+
+#inventory-panels {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+/* ============================================
+   PANELS
+   ============================================ */
+
+.inv-panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+}
+
+.weight-info {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.weight-info.overweight {
+    color: var(--danger);
+}
+
+/* ============================================
+   GRID
+   ============================================ */
+
+.grid-container {
+    display: grid;
+    gap: var(--cell-gap);
+    position: relative;
+    /* will-change on the container for composited children */
+}
+
+.grid-cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    background: var(--bg-cell);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    transition: background var(--transition-fast) ease;
+}
+
+.grid-cell.highlight-valid {
+    background: var(--success-glow);
+    border-color: var(--success);
+}
+
+.grid-cell.highlight-invalid {
+    background: var(--danger-glow);
+    border-color: var(--danger);
+}
+
+.grid-cell.highlight-hover {
+    background: var(--bg-cell-hover);
+}
+
+/* ============================================
+   ITEMS (positioned absolutely over grid)
+   ============================================ */
+
+.grid-item {
+    position: absolute;
+    border-radius: 4px;
+    background: rgba(50, 50, 50, 0.85);
+    border: 1px solid rgba(100, 100, 100, 0.6);
+    cursor: grab;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: box-shadow var(--transition-fast) ease;
+    will-change: transform;
+    z-index: 5;
+}
+
+.grid-item:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+    z-index: 6;
+}
+
+.grid-item.dragging {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.grid-item .item-image {
+    width: 80%;
+    height: 60%;
+    object-fit: contain;
+    pointer-events: none;
+    image-rendering: -webkit-optimize-contrast;
+}
+
+.grid-item .item-image-placeholder {
+    width: 80%;
+    height: 60%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    word-break: break-word;
+    pointer-events: none;
+}
+
+.grid-item .item-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 95%;
+    text-align: center;
+    position: absolute;
+    top: 2px;
+    left: 3px;
+}
+
+.grid-item .item-count {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.grid-item .item-rotated-indicator {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 8px;
+    color: var(--accent);
+    pointer-events: none;
+}
+
+/* ============================================
+   HOTBAR
+   ============================================ */
+
+#hotbar {
+    display: flex;
+    gap: 6px;
+}
+
+.hotbar-slot {
+    width: 56px;
+    height: 56px;
+    background: var(--hotbar-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color var(--transition-fast) ease;
+    cursor: pointer;
+}
+
+.hotbar-slot:hover {
+    border-color: var(--accent);
+}
+
+.hotbar-slot .hotbar-key {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    pointer-events: none;
+}
+
+.hotbar-slot .hotbar-item-img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.hotbar-slot .hotbar-item-placeholder {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: var(--text-dim);
+    text-align: center;
+    pointer-events: none;
+}
+
+.hotbar-slot.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* ============================================
+   SORT BUTTONS
+   ============================================ */
+
+#sort-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+#sort-buttons button {
+    width: 36px;
+    height: 36px;
+    background: var(--hotbar-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all var(--transition-fast) ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#sort-buttons button:hover {
+    border-color: var(--accent);
+    background: rgba(74, 158, 255, 0.15);
+}
+
+#sort-buttons button:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   BACKPACK
+   ============================================ */
+
+#backpack-section {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+#backpack-slot-container {
+    min-width: 80px;
+}
+
+.backpack-drop-zone {
+    width: calc(var(--cell-size) * 2 + var(--cell-gap));
+    height: calc(var(--cell-size) * 2 + var(--cell-gap));
+    background: var(--bg-cell);
+    border: 2px dashed var(--border-color);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: border-color var(--transition-fast) ease;
+}
+
+.backpack-drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+}
+
+.backpack-drop-zone .empty-text {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    pointer-events: none;
+}
+
+.backpack-drop-zone .backpack-equipped-item {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+}
+
+.backpack-drop-zone .backpack-equipped-item img,
+.backpack-drop-zone .backpack-equipped-item .item-image-placeholder {
+    width: 70%;
+    height: 70%;
+    object-fit: contain;
+}
+
+.backpack-drop-zone .backpack-equipped-item .bp-label {
+    font-size: 10px;
+    color: var(--text-primary);
+    margin-top: 2px;
+}
+
+/* ============================================
+   CONTEXT MENU
+   ============================================ */
+
+#context-menu {
+    position: fixed;
+    background: var(--ctx-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    min-width: 140px;
+    padding: 4px 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    z-index: 500;
+    animation: ctxFadeIn 0.1s ease-out;
+}
+
+@keyframes ctxFadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.ctx-item {
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background var(--transition-fast) ease;
+}
+
+.ctx-item:hover {
+    background: rgba(74, 158, 255, 0.2);
+}
+
+.ctx-separator {
+    height: 1px;
+    background: var(--border-color);
+    margin: 3px 0;
+}
+
+/* ============================================
+   SPLIT DIALOG
+   ============================================ */
+
+#split-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 600;
+}
+
+.split-content {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    min-width: 280px;
+    text-align: center;
+}
+
+.split-content h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.split-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+#split-slider {
+    width: 100%;
+    margin: 8px 0;
+    accent-color: var(--accent);
+}
+
+.split-counts {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: var(--text-primary);
+}
+
+.split-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.split-buttons button {
+    padding: 8px 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-cell);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast) ease;
+}
+
+.split-buttons button:hover {
+    border-color: var(--accent);
+    background: rgba(74, 158, 255, 0.15);
+}
+
+#split-confirm {
+    background: rgba(74, 158, 255, 0.2);
+    border-color: var(--accent);
+}
+
+/* ============================================
+   TOOLTIP
+   ============================================ */
+
+#tooltip {
+    position: fixed;
+    background: var(--tooltip-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px 12px;
+    max-width: 220px;
+    z-index: 400;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+#tooltip-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+}
+
+#tooltip-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    line-height: 1.3;
+}
+
+#tooltip-info {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+
+/* ============================================
+   DRAG GHOST
+   ============================================ */
+
+#drag-ghost {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.85;
+    border-radius: 4px;
+    background: rgba(50, 50, 50, 0.9);
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 16px var(--accent-glow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* GPU composited */
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
+}
+
+#drag-ghost img {
+    width: 80%;
+    height: 60%;
+    object-fit: contain;
+}
+
+#drag-ghost .ghost-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ============================================
+   SCROLLBAR (minimal)
+   ============================================ */
+
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+}
+
+/* ============================================
+   RESPONSIVE: scale down for smaller screens
+   ============================================ */
+
+@media (max-height: 900px) {
+    :root {
+        --cell-size: 50px;
+    }
+}
+
+@media (max-height: 750px) {
+    :root {
+        --cell-size: 42px;
+    }
+}

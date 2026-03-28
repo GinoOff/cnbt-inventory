@@ -1,0 +1,461 @@
+/**
+ * CNBT Inventory - Drag & Drop System
+ *
+ * GPU-accelerated dragging using transform: translate3d().
+ * Pointer events for unified mouse/touch.
+ * requestAnimationFrame for smooth 60fps updates.
+ */
+
+'use strict';
+
+const DragSystem = (function () {
+    // State
+    let isDragging = false;
+    let dragItem = null;       // { item, index, grid, originalX, originalY, originalRotated }
+    let ghostEl = null;
+    let currentRotated = false;
+    let mouseX = 0, mouseY = 0;
+    let rafId = null;
+
+    // Offset from cursor to item top-left during drag
+    let offsetX = 0, offsetY = 0;
+
+    // Currently hovered grid
+    let hoverGrid = null;
+    let hoverGridX = 0, hoverGridY = 0;
+
+    function init() {
+        ghostEl = document.getElementById('drag-ghost');
+
+        // Use pointer events on the body for global tracking
+        document.addEventListener('pointerdown', onPointerDown, { passive: false });
+        document.addEventListener('pointermove', onPointerMove, { passive: true });
+        document.addEventListener('pointerup', onPointerUp, { passive: false });
+
+        // R key for rotation during drag
+        document.addEventListener('keydown', onKeyDown);
+    }
+
+    function onPointerDown(e) {
+        if (e.button !== 0) return; // Left click only
+
+        // Check if clicked on a grid item
+        const itemEl = e.target.closest('.grid-item');
+        if (!itemEl) return;
+
+        e.preventDefault();
+
+        const gridId = itemEl.dataset.gridId;
+        const itemIndex = parseInt(itemEl.dataset.itemIndex);
+        const grid = window.CNBT.getGrid(gridId);
+        if (!grid) return;
+
+        const item = grid.getItem(itemIndex);
+        if (!item) return;
+
+        // Calculate offset
+        const rect = itemEl.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+
+        // Start drag
+        isDragging = true;
+        currentRotated = item.rotated;
+        dragItem = {
+            item: { ...item },
+            index: itemIndex,
+            grid: grid,
+            gridId: gridId,
+            originalX: item.x,
+            originalY: item.y,
+            originalRotated: item.rotated,
+        };
+
+        // Mark original element as dragging (faded)
+        itemEl.classList.add('dragging');
+
+        // Setup ghost
+        setupGhost(item);
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        updateGhostPosition();
+
+        // Start render loop
+        if (!rafId) {
+            rafId = requestAnimationFrame(renderLoop);
+        }
+    }
+
+    function onPointerMove(e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+    }
+
+    function onPointerUp(e) {
+        if (!isDragging) return;
+
+        // Stop render loop
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+
+        // Hide ghost
+        ghostEl.classList.add('hidden');
+
+        // Clear highlights on all grids
+        window.CNBT.clearAllHighlights();
+
+        // Determine drop target
+        const dropResult = getDropTarget(e.clientX, e.clientY);
+
+        if (dropResult) {
+            handleDrop(dropResult);
+        } else {
+            // Check if dropped on backpack slot
+            const bpSlot = document.getElementById('backpack-slot');
+            if (bpSlot) {
+                const bpRect = bpSlot.getBoundingClientRect();
+                if (e.clientX >= bpRect.left && e.clientX <= bpRect.right &&
+                    e.clientY >= bpRect.top && e.clientY <= bpRect.bottom) {
+                    handleBackpackEquip();
+                    finishDrag();
+                    return;
+                }
+            }
+
+            // Check if dropped on a hotbar slot
+            const hotbarSlot = document.elementFromPoint(e.clientX, e.clientY);
+            if (hotbarSlot && hotbarSlot.closest('.hotbar-slot')) {
+                const slot = hotbarSlot.closest('.hotbar-slot');
+                const slotIndex = parseInt(slot.dataset.slot);
+                window.CNBT.assignHotbar(slotIndex, dragItem);
+                finishDrag();
+                return;
+            }
+
+            // Revert
+            revertDrag();
+        }
+
+        finishDrag();
+    }
+
+    function onKeyDown(e) {
+        if (!isDragging) return;
+
+        if (e.key === 'r' || e.key === 'R') {
+            currentRotated = !currentRotated;
+            updateGhostSize();
+        }
+    }
+
+    function setupGhost(item) {
+        const def = window.CNBT.itemDefs[item.name];
+        if (!def) return;
+
+        ghostEl.innerHTML = '';
+        ghostEl.classList.remove('hidden');
+
+        const img = new Image();
+        img.src = `img/${def.image}`;
+        img.style.width = '80%';
+        img.style.height = '60%';
+        img.style.objectFit = 'contain';
+        img.onerror = function () {
+            this.style.display = 'none';
+            const ph = document.createElement('div');
+            ph.className = 'ghost-label';
+            ph.textContent = def.label;
+            ghostEl.appendChild(ph);
+        };
+        ghostEl.appendChild(img);
+
+        const label = document.createElement('div');
+        label.className = 'ghost-label';
+        label.textContent = def.label;
+        ghostEl.appendChild(label);
+
+        updateGhostSize();
+    }
+
+    function updateGhostSize() {
+        const def = window.CNBT.itemDefs[dragItem.item.name];
+        if (!def) return;
+
+        const size = currentRotated
+            ? { w: def.sizeY, h: def.sizeX }
+            : { w: def.sizeX, h: def.sizeY };
+
+        const cellSize = dragItem.grid._getCellSize();
+        const gap = dragItem.grid._getGap();
+
+        ghostEl.style.width = (size.w * cellSize + (size.w - 1) * gap) + 'px';
+        ghostEl.style.height = (size.h * cellSize + (size.h - 1) * gap) + 'px';
+
+        // Adjust offset for new size
+        offsetX = Math.min(offsetX, parseInt(ghostEl.style.width));
+        offsetY = Math.min(offsetY, parseInt(ghostEl.style.height));
+    }
+
+    function updateGhostPosition() {
+        const x = mouseX - offsetX;
+        const y = mouseY - offsetY;
+        ghostEl.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    }
+
+    /**
+     * Main render loop: runs at 60fps during drag
+     * Updates ghost position and grid highlights
+     */
+    function renderLoop() {
+        if (!isDragging) return;
+
+        updateGhostPosition();
+        updateHighlights();
+
+        rafId = requestAnimationFrame(renderLoop);
+    }
+
+    function updateHighlights() {
+        window.CNBT.clearAllHighlights();
+
+        const grids = window.CNBT.getAllGrids();
+        hoverGrid = null;
+
+        for (const [id, grid] of grids) {
+            const rect = grid.container.getBoundingClientRect();
+            if (mouseX >= rect.left && mouseX <= rect.right &&
+                mouseY >= rect.top && mouseY <= rect.bottom) {
+
+                hoverGrid = grid;
+
+                // Convert to grid coordinates
+                const relX = mouseX - offsetX - rect.left;
+                const relY = mouseY - offsetY - rect.top;
+                const gCoords = grid.pixelToGrid(relX, relY);
+
+                const def = window.CNBT.itemDefs[dragItem.item.name];
+                if (!def) break;
+
+                const size = currentRotated
+                    ? { w: def.sizeY, h: def.sizeX }
+                    : { w: def.sizeX, h: def.sizeY };
+
+                // Check if this is the same grid and same item
+                const excludeIdx = (grid === dragItem.grid) ? dragItem.index : -1;
+                const canPlace = grid.canPlace(gCoords.x, gCoords.y, size.w, size.h, excludeIdx);
+
+                hoverGridX = gCoords.x;
+                hoverGridY = gCoords.y;
+
+                grid.highlightCells(gCoords.x, gCoords.y, size.w, size.h, canPlace);
+                break;
+            }
+        }
+    }
+
+    function getDropTarget(px, py) {
+        const grids = window.CNBT.getAllGrids();
+
+        for (const [id, grid] of grids) {
+            const rect = grid.container.getBoundingClientRect();
+            if (px >= rect.left && px <= rect.right &&
+                py >= rect.top && py <= rect.bottom) {
+
+                const relX = px - offsetX - rect.left;
+                const relY = py - offsetY - rect.top;
+                const gCoords = grid.pixelToGrid(relX, relY);
+
+                const def = window.CNBT.itemDefs[dragItem.item.name];
+                if (!def) return null;
+
+                const size = currentRotated
+                    ? { w: def.sizeY, h: def.sizeX }
+                    : { w: def.sizeX, h: def.sizeY };
+
+                const excludeIdx = (grid === dragItem.grid) ? dragItem.index : -1;
+                const canPlace = grid.canPlace(gCoords.x, gCoords.y, size.w, size.h, excludeIdx);
+
+                if (canPlace) {
+                    return {
+                        grid: grid,
+                        gridId: id,
+                        x: gCoords.x,
+                        y: gCoords.y,
+                        rotated: currentRotated,
+                    };
+                }
+
+                // Check if dropping on same item type for stacking
+                const targetOccupant = grid.getItemAt(gCoords.x, gCoords.y);
+                if (targetOccupant && targetOccupant.item.name === dragItem.item.name) {
+                    const targetDef = window.CNBT.itemDefs[targetOccupant.item.name];
+                    if (targetDef && targetDef.stackable) {
+                        return {
+                            grid: grid,
+                            gridId: id,
+                            stackTarget: targetOccupant,
+                            isStack: true,
+                        };
+                    }
+                }
+
+                return null; // Over grid but can't place
+            }
+        }
+        return null;
+    }
+
+    function handleDrop(dropResult) {
+        if (dropResult.isStack) {
+            handleStack(dropResult);
+            return;
+        }
+
+        const srcGrid = dragItem.grid;
+        const dstGrid = dropResult.grid;
+
+        if (srcGrid === dstGrid) {
+            // Move within same grid
+            window.CNBT.nuiCallback('moveItem', {
+                owner: window.CNBT.getGridOwner(dragItem.gridId),
+                invType: window.CNBT.getGridInvType(dragItem.gridId),
+                grid: dragItem.gridId,
+                itemIndex: dragItem.index + 1, // Lua 1-indexed
+                x: dropResult.x,
+                y: dropResult.y,
+                rotated: dropResult.rotated,
+            });
+
+            // Optimistic update
+            srcGrid.moveItem(dragItem.index, dropResult.x, dropResult.y, dropResult.rotated);
+        } else {
+            // Transfer between grids
+            window.CNBT.nuiCallback('transferItem', {
+                srcOwner: window.CNBT.getGridOwner(dragItem.gridId),
+                srcInvType: window.CNBT.getGridInvType(dragItem.gridId),
+                srcGrid: dragItem.gridId,
+                itemIndex: dragItem.index + 1,
+                dstOwner: window.CNBT.getGridOwner(dropResult.gridId),
+                dstInvType: window.CNBT.getGridInvType(dropResult.gridId),
+                dstGrid: dropResult.gridId,
+                x: dropResult.x,
+                y: dropResult.y,
+                rotated: dropResult.rotated,
+            });
+
+            // Optimistic update
+            const removedItem = srcGrid.removeItem(dragItem.index);
+            if (removedItem) {
+                dstGrid.addItem(removedItem, dropResult.x, dropResult.y, dropResult.rotated);
+            }
+        }
+
+        window.CNBT.updateWeightDisplays();
+    }
+
+    function handleStack(dropResult) {
+        const srcGrid = dragItem.grid;
+        const dstGrid = dropResult.grid;
+        const target = dropResult.stackTarget;
+
+        if (srcGrid === dstGrid) {
+            window.CNBT.nuiCallback('stackItem', {
+                owner: window.CNBT.getGridOwner(dragItem.gridId),
+                invType: window.CNBT.getGridInvType(dragItem.gridId),
+                grid: dragItem.gridId,
+                srcIndex: dragItem.index + 1,
+                dstIndex: target.index + 1,
+            });
+        } else {
+            // Cross-grid stacking: transfer first
+            window.CNBT.nuiCallback('transferItem', {
+                srcOwner: window.CNBT.getGridOwner(dragItem.gridId),
+                srcInvType: window.CNBT.getGridInvType(dragItem.gridId),
+                srcGrid: dragItem.gridId,
+                itemIndex: dragItem.index + 1,
+                dstOwner: window.CNBT.getGridOwner(dropResult.gridId),
+                dstInvType: window.CNBT.getGridInvType(dropResult.gridId),
+                dstGrid: dropResult.gridId,
+                x: target.item.x,
+                y: target.item.y,
+                rotated: target.item.rotated,
+            });
+        }
+
+        // Optimistic stack update
+        const def = window.CNBT.itemDefs[dragItem.item.name];
+        if (def) {
+            const maxStack = def.maxStack || 1;
+            const space = maxStack - (target.item.count || 1);
+            const toTransfer = Math.min(space, dragItem.item.count || 1);
+
+            if (toTransfer > 0) {
+                target.item.count = (target.item.count || 1) + toTransfer;
+                dragItem.item.count = (dragItem.item.count || 1) - toTransfer;
+
+                // Update target display
+                const countEl = target.item.el ? target.item.el.querySelector('.item-count') : null;
+                if (countEl) countEl.textContent = `${target.item.count}/${maxStack}`;
+
+                if (dragItem.item.count <= 0) {
+                    srcGrid.removeItem(dragItem.index);
+                } else {
+                    // Update source display
+                    const srcCountEl = srcGrid.items[dragItem.index].el ?
+                        srcGrid.items[dragItem.index].el.querySelector('.item-count') : null;
+                    if (srcCountEl) srcCountEl.textContent = `${dragItem.item.count}/${maxStack}`;
+                    srcGrid.items[dragItem.index].count = dragItem.item.count;
+                }
+            }
+        }
+
+        window.CNBT.updateWeightDisplays();
+    }
+
+    function handleBackpackEquip() {
+        const def = window.CNBT.itemDefs[dragItem.item.name];
+        if (!def || def.category !== 'backpack') return;
+
+        window.CNBT.nuiCallback('equipBackpack', {
+            itemIndex: dragItem.index + 1,
+        });
+    }
+
+    function revertDrag() {
+        // Unfade original element
+        if (dragItem && dragItem.grid) {
+            const item = dragItem.grid.items[dragItem.index];
+            if (item && item.el) {
+                item.el.classList.remove('dragging');
+            }
+        }
+    }
+
+    function finishDrag() {
+        // Unfade
+        if (dragItem && dragItem.grid) {
+            const item = dragItem.grid.items[dragItem.index];
+            if (item && item.el) {
+                item.el.classList.remove('dragging');
+            }
+        }
+
+        isDragging = false;
+        dragItem = null;
+        currentRotated = false;
+        hoverGrid = null;
+    }
+
+    function isActive() {
+        return isDragging;
+    }
+
+    return {
+        init,
+        isActive,
+    };
+})();
+
+window.DragSystem = DragSystem;

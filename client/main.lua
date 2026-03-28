@@ -1,0 +1,331 @@
+local ESX = exports['es_extended']:getSharedObject()
+
+local isOpen = false
+local currentExternal = nil
+local lastUseTime = 0
+
+-- ============================================
+-- OPEN / CLOSE
+-- ============================================
+
+local function openInventory(externalData)
+    if isOpen then return end
+    TriggerServerEvent('cnbt-inventory:server:requestOpen', externalData)
+end
+
+local function closeInventory()
+    if not isOpen then return end
+    isOpen = false
+    currentExternal = nil
+    SetNuiFocus(false, false)
+    SendNUIMessage({ type = 'close' })
+    TriggerServerEvent('cnbt-inventory:server:closeInventory')
+end
+
+-- Server sends back inventory data -> open NUI
+RegisterNetEvent('cnbt-inventory:client:openInventory')
+AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, externalInv)
+    if isOpen then return end
+    isOpen = true
+    currentExternal = externalInv
+
+    -- Build item definitions to send to NUI (only once, or on first open)
+    local itemDefs = {}
+    for name, def in pairs(Items) do
+        itemDefs[name] = {
+            label = def.label,
+            description = def.description,
+            weight = def.weight,
+            sizeX = def.sizeX,
+            sizeY = def.sizeY,
+            stackable = def.stackable,
+            maxStack = def.maxStack,
+            usable = def.usable,
+            image = def.image,
+            category = def.category,
+        }
+    end
+
+    -- Backpack config
+    local backpackConfigs = {}
+    for name, bpDef in pairs(Config.Backpacks) do
+        backpackConfigs[name] = {
+            cols = bpDef.cols,
+            rows = bpDef.rows,
+            maxWeight = bpDef.maxWeight,
+        }
+    end
+
+    SetNuiFocus(true, true)
+    SendNUIMessage({
+        type = 'open',
+        playerData = playerData,
+        externalInv = externalInv,
+        itemDefs = itemDefs,
+        backpackConfigs = backpackConfigs,
+        hotbarSlots = Config.HotbarSlots,
+    })
+end)
+
+-- Force open external (stash/drop/vehicle)
+RegisterNetEvent('cnbt-inventory:client:forceOpenExternal')
+AddEventHandler('cnbt-inventory:client:forceOpenExternal', function(externalData)
+    if isOpen then
+        closeInventory()
+        Wait(100)
+    end
+    openInventory(externalData)
+end)
+
+-- ============================================
+-- KEY BINDS
+-- ============================================
+
+-- TAB to open/close inventory
+RegisterCommand('+inventory', function()
+    if isOpen then
+        closeInventory()
+    else
+        openInventory(nil)
+    end
+end, false)
+RegisterCommand('-inventory', function() end, false)
+RegisterKeyMapping('+inventory', 'Open/Close Inventory', 'keyboard', 'TAB')
+
+-- Hotbar keys 1-5
+for i = 1, Config.HotbarSlots do
+    RegisterCommand('hotbar_' .. i, function()
+        if isOpen then return end
+        local now = GetGameTimer()
+        if now - lastUseTime < Config.UseCooldown then return end
+        lastUseTime = now
+        SendNUIMessage({ type = 'useHotbar', slot = i })
+    end, false)
+    RegisterKeyMapping('hotbar_' .. i, 'Hotbar Slot ' .. i, 'keyboard', tostring(i))
+end
+
+-- ============================================
+-- NUI CALLBACKS
+-- ============================================
+
+RegisterNUICallback('close', function(_, cb)
+    closeInventory()
+    cb('ok')
+end)
+
+RegisterNUICallback('moveItem', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:moveItem', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('transferItem', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:transferItem', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('stackItem', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:stackItem', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('splitStack', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:splitStack', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('useItem', function(data, cb)
+    local now = GetGameTimer()
+    if now - lastUseTime < Config.UseCooldown then
+        cb('cooldown')
+        return
+    end
+    lastUseTime = now
+    TriggerServerEvent('cnbt-inventory:server:useItem', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('dropItem', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:dropItem', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('equipBackpack', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:equipBackpack', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('unequipBackpack', function(_, cb)
+    TriggerServerEvent('cnbt-inventory:server:unequipBackpack')
+    cb('ok')
+end)
+
+RegisterNUICallback('updateHotbar', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:updateHotbar', data.hotbar)
+    cb('ok')
+end)
+
+RegisterNUICallback('sortInventory', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:sortInventory', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('useHotbarItem', function(data, cb)
+    local now = GetGameTimer()
+    if now - lastUseTime < Config.UseCooldown then
+        cb('cooldown')
+        return
+    end
+    lastUseTime = now
+    TriggerServerEvent('cnbt-inventory:server:useItem', data)
+    cb('ok')
+end)
+
+-- ============================================
+-- SERVER RESPONSE HANDLERS
+-- ============================================
+
+RegisterNetEvent('cnbt-inventory:client:moveSuccess')
+AddEventHandler('cnbt-inventory:client:moveSuccess', function(data)
+    SendNUIMessage({ type = 'moveSuccess', data = data })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:moveFailed')
+AddEventHandler('cnbt-inventory:client:moveFailed', function()
+    SendNUIMessage({ type = 'moveFailed' })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:transferSuccess')
+AddEventHandler('cnbt-inventory:client:transferSuccess', function(data)
+    SendNUIMessage({ type = 'transferSuccess', data = data })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:stackSuccess')
+AddEventHandler('cnbt-inventory:client:stackSuccess', function(data)
+    SendNUIMessage({ type = 'stackSuccess', data = data })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:splitSuccess')
+AddEventHandler('cnbt-inventory:client:splitSuccess', function(data)
+    SendNUIMessage({ type = 'splitSuccess', data = data })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:useSuccess')
+AddEventHandler('cnbt-inventory:client:useSuccess', function(data)
+    SendNUIMessage({ type = 'useSuccess', data = data })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:backpackEquipped')
+AddEventHandler('cnbt-inventory:client:backpackEquipped', function(backpack)
+    SendNUIMessage({ type = 'backpackEquipped', backpack = backpack })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:backpackUnequipped')
+AddEventHandler('cnbt-inventory:client:backpackUnequipped', function()
+    SendNUIMessage({ type = 'backpackUnequipped' })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:sortComplete')
+AddEventHandler('cnbt-inventory:client:sortComplete', function(data)
+    SendNUIMessage({ type = 'sortComplete', data = data })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:refreshInventory')
+AddEventHandler('cnbt-inventory:client:refreshInventory', function()
+    if isOpen then
+        closeInventory()
+        Wait(200)
+        openInventory(currentExternal)
+    end
+end)
+
+-- ============================================
+-- VEHICLE INVENTORY
+-- ============================================
+
+local function getVehicleModel(vehicle)
+    return GetDisplayNameFromVehicleModel(GetEntityModel(vehicle)):lower()
+end
+
+local function getVehiclePlate(vehicle)
+    return ESX.Math.Trim(GetVehicleNumberPlateText(vehicle))
+end
+
+-- Open trunk (player must be near rear of vehicle)
+RegisterCommand('trunk', function()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local vehicle = ESX.Game.GetClosestVehicle(coords)
+
+    if not vehicle or vehicle == 0 then
+        ESX.ShowNotification('No vehicle nearby')
+        return
+    end
+
+    local vehCoords = GetEntityCoords(vehicle)
+    if #(coords - vehCoords) > 5.0 then
+        ESX.ShowNotification('Too far from vehicle')
+        return
+    end
+
+    local plate = getVehiclePlate(vehicle)
+    local model = getVehicleModel(vehicle)
+    local trunkId = 'trunk_' .. plate
+
+    openInventory({
+        owner = trunkId,
+        invType = 'trunk_' .. model,
+        label = 'Trunk - ' .. plate,
+    })
+end, false)
+
+-- Open glovebox
+RegisterCommand('glovebox', function()
+    local ped = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(ped, false)
+
+    if not vehicle or vehicle == 0 then
+        ESX.ShowNotification('You must be in a vehicle')
+        return
+    end
+
+    local plate = getVehiclePlate(vehicle)
+    local model = getVehicleModel(vehicle)
+    local gloveboxId = 'glovebox_' .. plate
+
+    openInventory({
+        owner = gloveboxId,
+        invType = 'glovebox_' .. model,
+        label = 'Glovebox - ' .. plate,
+    })
+end, false)
+
+-- ============================================
+-- EXPORTS (Client-side)
+-- ============================================
+
+exports('OpenInventory', openInventory)
+exports('CloseInventory', closeInventory)
+exports('IsOpen', function() return isOpen end)
+
+-- Open stash from client
+exports('OpenStash', function(stashId, label)
+    openInventory({
+        owner = stashId,
+        invType = 'stash',
+        label = label or 'Stash',
+    })
+end)
+
+-- On player load, request drops
+RegisterNetEvent('esx:playerLoaded')
+AddEventHandler('esx:playerLoaded', function()
+    TriggerServerEvent('cnbt-inventory:server:requestDrops')
+end)
+
+-- Also request on resource start
+CreateThread(function()
+    Wait(1000)
+    TriggerServerEvent('cnbt-inventory:server:requestDrops')
+end)
+
+print('[cnbt-inventory] Client loaded successfully')
