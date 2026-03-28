@@ -1,22 +1,23 @@
 local ESX = exports['es_extended']:getSharedObject()
 
 -- In-memory cache: inventories[owner..":"..inv_type] = { items = {}, backpack = nil, hotbar = {} }
-local inventories = {}
-local saveDirty = {} -- track which inventories need saving
+-- Non-local so other server files in this resource can access them
+inventories = {}
+saveDirty = {} -- track which inventories need saving
 
 -- ============================================
 -- HELPERS
 -- ============================================
 
-local function getCacheKey(owner, invType)
+function getCacheKey(owner, invType)
     return owner .. ':' .. invType
 end
 
-local function getItemDef(name)
+function getItemDef(name)
     return Items[name]
 end
 
-local function calcWeight(items)
+function calcWeight(items)
     local total = 0
     for _, item in ipairs(items) do
         local def = getItemDef(item.name)
@@ -27,7 +28,7 @@ local function calcWeight(items)
     return total
 end
 
-local function getEffectiveSize(itemName, rotated)
+function getEffectiveSize(itemName, rotated)
     local def = getItemDef(itemName)
     if not def then return 1, 1 end
     if rotated then
@@ -37,7 +38,7 @@ local function getEffectiveSize(itemName, rotated)
 end
 
 -- Check if placement is valid within a grid
-local function canPlaceInGrid(items, cols, rows, x, y, sizeX, sizeY, excludeIndex)
+function canPlaceInGrid(items, cols, rows, x, y, sizeX, sizeY, excludeIndex)
     if x < 0 or y < 0 or x + sizeX > cols or y + sizeY > rows then
         return false
     end
@@ -56,7 +57,7 @@ local function canPlaceInGrid(items, cols, rows, x, y, sizeX, sizeY, excludeInde
 end
 
 -- Find a free position in the grid
-local function findFreePosition(items, cols, rows, sizeX, sizeY)
+function findFreePosition(items, cols, rows, sizeX, sizeY)
     for testY = 0, rows - sizeY do
         for testX = 0, cols - sizeX do
             if canPlaceInGrid(items, cols, rows, testX, testY, sizeX, sizeY, nil) then
@@ -81,7 +82,7 @@ end
 -- DATABASE
 -- ============================================
 
-local function loadInventory(owner, invType)
+function loadInventory(owner, invType)
     local key = getCacheKey(owner, invType)
     if inventories[key] then
         return inventories[key]
@@ -108,7 +109,7 @@ local function loadInventory(owner, invType)
     return inv
 end
 
-local function saveInventory(owner, invType)
+function saveInventory(owner, invType)
     local key = getCacheKey(owner, invType)
     local inv = inventories[key]
     if not inv then return end
@@ -122,7 +123,7 @@ local function saveInventory(owner, invType)
     saveDirty[key] = nil
 end
 
-local function markDirty(owner, invType)
+function markDirty(owner, invType)
     saveDirty[getCacheKey(owner, invType)] = { owner = owner, invType = invType }
 end
 
@@ -140,11 +141,14 @@ end)
 -- GRID DIMENSIONS HELPER
 -- ============================================
 
-local function getGridDimensions(invType, owner)
+function getGridDimensions(invType, owner)
     if invType == 'player' then
         return Config.PlayerCols, Config.PlayerRows, Config.MaxWeight
     elseif invType == 'stash' then
-        -- Stashes can have custom sizes stored elsewhere; use defaults
+        if customStashes[owner] then
+            local s = customStashes[owner]
+            return s.cols, s.rows, s.maxWeight
+        end
         return Config.DefaultStashCols, Config.DefaultStashRows, Config.DefaultStashMaxWeight
     elseif invType:find('trunk_') then
         local model = invType:gsub('trunk_', '')
@@ -161,21 +165,13 @@ local function getGridDimensions(invType, owner)
 end
 
 -- Custom stash registry
-local customStashes = {}
+customStashes = {}
 
 function RegisterStash(stashId, cols, rows, maxWeight)
     customStashes[stashId] = { cols = cols, rows = rows, maxWeight = maxWeight }
 end
 
--- Override getGridDimensions for custom stashes
-local _getGridDimensions = getGridDimensions
-getGridDimensions = function(invType, owner)
-    if invType == 'stash' and customStashes[owner] then
-        local s = customStashes[owner]
-        return s.cols, s.rows, s.maxWeight
-    end
-    return _getGridDimensions(invType, owner)
-end
+-- Note: getGridDimensions checks customStashes internally (see stash check above)
 
 -- ============================================
 -- PLAYER CONNECT / DISCONNECT
