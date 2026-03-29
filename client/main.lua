@@ -268,9 +268,45 @@ AddEventHandler('cnbt-inventory:client:splitSuccess', function(data)
     SendNUIMessage({ type = 'splitSuccess', data = data })
 end)
 
+-- Track currently equipped weapon from inventory
+local equippedWeapon = nil
+
 RegisterNetEvent('cnbt-inventory:client:useSuccess')
 AddEventHandler('cnbt-inventory:client:useSuccess', function(data)
     SendNUIMessage({ type = 'useSuccess', data = data })
+end)
+
+-- Weapon equip/unequip handler (triggered by server when a weapon item is used)
+RegisterNetEvent('cnbt-inventory:client:equipWeapon')
+AddEventHandler('cnbt-inventory:client:equipWeapon', function(weaponHash, itemName)
+    local ped = PlayerPedId()
+    local hash = GetHashKey(weaponHash)
+
+    if equippedWeapon == weaponHash then
+        -- Already equipped -> unequip (toggle off)
+        RemoveWeaponFromPed(ped, hash)
+        equippedWeapon = nil
+        ESX.ShowNotification('Weapon holstered')
+    else
+        -- Unequip previous weapon first
+        if equippedWeapon then
+            RemoveWeaponFromPed(ped, GetHashKey(equippedWeapon))
+        end
+        -- Equip new weapon
+        GiveWeaponToPed(ped, hash, 0, false, true)
+        SetCurrentPedWeapon(ped, hash, true)
+        equippedWeapon = weaponHash
+    end
+end)
+
+-- Clean up equipped weapon on resource stop
+AddEventHandler('onResourceStop', function(resource)
+    if resource ~= GetCurrentResourceName() then return end
+    if equippedWeapon then
+        local ped = PlayerPedId()
+        RemoveWeaponFromPed(ped, GetHashKey(equippedWeapon))
+        equippedWeapon = nil
+    end
 end)
 
 RegisterNetEvent('cnbt-inventory:client:backpackEquipped')

@@ -100,7 +100,7 @@ function loadInventory(owner, invType)
         }
     else
         inv = { items = {}, backpack = nil, hotbar = {} }
-        MySQL.insert.await('INSERT INTO cnbt_inventories (owner, inv_type, items, backpack, hotbar) VALUES (?, ?, ?, ?, ?)', {
+        MySQL.insert.await('INSERT IGNORE INTO cnbt_inventories (owner, inv_type, items, backpack, hotbar) VALUES (?, ?, ?, ?, ?)', {
             owner, invType, '[]', nil, '[]'
         })
     end
@@ -529,6 +529,14 @@ AddEventHandler('cnbt-inventory:server:useItem', function(data)
 
     -- Trigger generic event for external scripts
     TriggerEvent('cnbt-inventory:server:itemUsed', src, item.name, item, data.grid)
+
+    -- Weapon equip: if item has a weaponHash, trigger client equip (toggle)
+    if def.weaponHash then
+        TriggerClientEvent('cnbt-inventory:client:equipWeapon', src, def.weaponHash, item.name)
+        -- Weapons are NOT consumed on use, so skip the consumable logic
+        TriggerClientEvent('cnbt-inventory:client:useSuccess', src, data)
+        return
+    end
 
     -- Apply item effects (esx_status, custom exports, events)
     local effects = Config.ItemEffects and Config.ItemEffects[item.name]

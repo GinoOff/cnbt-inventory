@@ -192,6 +192,7 @@ Items['weapon_pistol'] = {
     usable      = true,
     image       = 'weapon_pistol.png',
     category    = 'weapon',
+    weaponHash  = 'WEAPON_PISTOL',
 }
 
 Items['weapon_smg'] = {
@@ -205,6 +206,7 @@ Items['weapon_smg'] = {
     usable      = true,
     image       = 'weapon_smg.png',
     category    = 'weapon',
+    weaponHash  = 'WEAPON_SMG',
 }
 
 Items['weapon_rifle'] = {
@@ -218,6 +220,7 @@ Items['weapon_rifle'] = {
     usable      = true,
     image       = 'weapon_rifle.png',
     category    = 'weapon',
+    weaponHash  = 'WEAPON_ASSAULTRIFLE',
 }
 
 Items['weapon_shotgun'] = {
@@ -231,6 +234,7 @@ Items['weapon_shotgun'] = {
     usable      = true,
     image       = 'weapon_shotgun.png',
     category    = 'weapon',
+    weaponHash  = 'WEAPON_PUMPSHOTGUN',
 }
 
 Items['weapon_knife'] = {
@@ -244,6 +248,7 @@ Items['weapon_knife'] = {
     usable      = true,
     image       = 'weapon_knife.png',
     category    = 'weapon',
+    weaponHash  = 'WEAPON_KNIFE',
 }
 
 Items['ammo_9mm'] = {
