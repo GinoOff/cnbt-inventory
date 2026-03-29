@@ -527,8 +527,36 @@ AddEventHandler('cnbt-inventory:server:useItem', function(data)
     local def = getItemDef(item.name)
     if not def or not def.usable then return end
 
-    -- Trigger ESX item use
+    -- Trigger generic event for external scripts
     TriggerEvent('cnbt-inventory:server:itemUsed', src, item.name, item, data.grid)
+
+    -- Apply item effects (esx_status, custom exports, events)
+    local effects = Config.ItemEffects and Config.ItemEffects[item.name]
+    if effects then
+        -- esx_status integration
+        if effects.status then
+            for stat, amount in pairs(effects.status) do
+                TriggerClientEvent('esx_status:add', src, stat, amount)
+            end
+        end
+        -- Custom export call
+        if effects.export then
+            local ok, err = pcall(function()
+                exports[effects.export.resource][effects.export.export](src, item.name, item)
+            end)
+            if not ok then
+                print('[cnbt-inventory] Export call failed for ' .. item.name .. ': ' .. tostring(err))
+            end
+        end
+        -- Server event
+        if effects.event and effects.event.server then
+            TriggerEvent(effects.event.server, src, item.name, item)
+        end
+        -- Client event
+        if effects.event and effects.event.client then
+            TriggerClientEvent(effects.event.client, src, item.name, item)
+        end
+    end
 
     -- If consumable, reduce count
     if def.stackable and def.usable then
@@ -579,7 +607,7 @@ AddEventHandler('cnbt-inventory:server:equipBackpack', function(data)
     }
 
     markDirty(identifier, 'player')
-    TriggerClientEvent('cnbt-inventory:client:backpackEquipped', src, inv.backpack)
+    TriggerClientEvent('cnbt-inventory:client:backpackEquipped', src, inv.backpack, inv.items)
 end)
 
 RegisterNetEvent('cnbt-inventory:server:unequipBackpack')
@@ -623,7 +651,7 @@ AddEventHandler('cnbt-inventory:server:unequipBackpack', function()
     inv.backpack = nil
 
     markDirty(identifier, 'player')
-    TriggerClientEvent('cnbt-inventory:client:backpackUnequipped', src)
+    TriggerClientEvent('cnbt-inventory:client:backpackUnequipped', src, inv.items)
 end)
 
 -- Update hotbar

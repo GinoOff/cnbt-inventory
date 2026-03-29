@@ -5,6 +5,32 @@ local currentExternal = nil
 local lastUseTime = 0
 
 -- ============================================
+-- DISABLE GTA WEAPON WHEEL
+-- ============================================
+
+CreateThread(function()
+    while true do
+        Wait(0)
+        -- Block weapon wheel (TAB default, and weapon select keys)
+        DisableControlAction(0, 37, true)  -- Weapon wheel (TAB)
+        BlockWeaponWheelThisFrame()
+        DisableControlAction(0, 157, true) -- Weapon wheel next
+        DisableControlAction(0, 158, true) -- Weapon wheel prev
+        DisableControlAction(0, 160, true) -- Weapon wheel next (alt)
+        DisableControlAction(0, 161, true) -- Weapon wheel prev (alt)
+        DisableControlAction(0, 162, true) -- Weapon wheel next (alt2)
+        DisableControlAction(0, 163, true) -- Weapon wheel prev (alt2)
+        -- Block the number keys from switching weapons (GTA default behavior)
+        DisableControlAction(0, 170, true) -- Select weapon slot 1
+        DisableControlAction(0, 171, true) -- Select weapon slot 2
+        DisableControlAction(0, 172, true) -- Select weapon slot 3
+        DisableControlAction(0, 173, true) -- Select weapon slot 4
+        DisableControlAction(0, 174, true) -- Select weapon slot 5
+        DisableControlAction(0, 175, true) -- Select weapon slot 6
+    end
+end)
+
+-- ============================================
 -- OPEN / CLOSE
 -- ============================================
 
@@ -29,7 +55,7 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
     isOpen = true
     currentExternal = externalInv
 
-    -- Build item definitions to send to NUI (only once, or on first open)
+    -- Build item definitions to send to NUI
     local itemDefs = {}
     for name, def in pairs(Items) do
         itemDefs[name] = {
@@ -92,14 +118,22 @@ end, false)
 RegisterCommand('-inventory', function() end, false)
 RegisterKeyMapping('+inventory', 'Open/Close Inventory', 'keyboard', 'TAB')
 
--- Hotbar keys 1-5
+-- Hotbar keys 1-5: work both when inventory is open and closed
 for i = 1, Config.HotbarSlots do
     RegisterCommand('hotbar_' .. i, function()
-        if isOpen then return end
         local now = GetGameTimer()
         if now - lastUseTime < Config.UseCooldown then return end
         lastUseTime = now
-        SendNUIMessage({ type = 'useHotbar', slot = i })
+
+        if isOpen then
+            -- When inventory is open, let NUI handle it (for visual feedback)
+            SendNUIMessage({ type = 'useHotbar', slot = i })
+        else
+            -- When inventory is closed, trigger server use directly via NUI callback
+            -- The hotbar data is cached client-side in NUI, so we send a message
+            -- that NUI will process and call back to Lua
+            SendNUIMessage({ type = 'useHotbar', slot = i })
+        end
     end, false)
     RegisterKeyMapping('hotbar_' .. i, 'Hotbar Slot ' .. i, 'keyboard', tostring(i))
 end
@@ -215,13 +249,13 @@ AddEventHandler('cnbt-inventory:client:useSuccess', function(data)
 end)
 
 RegisterNetEvent('cnbt-inventory:client:backpackEquipped')
-AddEventHandler('cnbt-inventory:client:backpackEquipped', function(backpack)
-    SendNUIMessage({ type = 'backpackEquipped', backpack = backpack })
+AddEventHandler('cnbt-inventory:client:backpackEquipped', function(backpack, updatedItems)
+    SendNUIMessage({ type = 'backpackEquipped', backpack = backpack, updatedItems = updatedItems })
 end)
 
 RegisterNetEvent('cnbt-inventory:client:backpackUnequipped')
-AddEventHandler('cnbt-inventory:client:backpackUnequipped', function()
-    SendNUIMessage({ type = 'backpackUnequipped' })
+AddEventHandler('cnbt-inventory:client:backpackUnequipped', function(updatedItems)
+    SendNUIMessage({ type = 'backpackUnequipped', updatedItems = updatedItems })
 end)
 
 RegisterNetEvent('cnbt-inventory:client:sortComplete')

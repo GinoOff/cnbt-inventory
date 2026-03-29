@@ -78,10 +78,10 @@ window.CNBT = (function () {
                 handleUseSuccess(msg.data);
                 break;
             case 'backpackEquipped':
-                handleBackpackEquipped(msg.backpack);
+                handleBackpackEquipped(msg.backpack, msg.updatedItems);
                 break;
             case 'backpackUnequipped':
-                handleBackpackUnequipped();
+                handleBackpackUnequipped(msg.updatedItems);
                 break;
             case 'sortComplete':
                 handleSortComplete(msg.data);
@@ -257,22 +257,25 @@ window.CNBT = (function () {
         }
     }
 
-    function handleBackpackEquipped(bp) {
+    function handleBackpackEquipped(bp, updatedItems) {
         equippedBackpack = bp;
         showBackpackGrid(bp);
         renderBackpackSlot();
-        // Refresh player grid (item was removed)
-        if (playerGrid) {
-            playerGrid._renderAllItems();
-            playerGrid.rebuildOccupied();
+        // Reload player grid with updated items (backpack removed from grid)
+        if (playerGrid && updatedItems) {
+            playerGrid.loadItems(updatedItems);
         }
         updateWeightDisplays();
     }
 
-    function handleBackpackUnequipped() {
+    function handleBackpackUnequipped(updatedItems) {
         equippedBackpack = null;
         hideBackpackGrid();
         renderBackpackSlot();
+        // Reload player grid with updated items (backpack added back to grid)
+        if (playerGrid && updatedItems) {
+            playerGrid.loadItems(updatedItems);
+        }
         updateWeightDisplays();
     }
 
@@ -458,7 +461,7 @@ window.CNBT = (function () {
             // Drop
             options.push({ separator: true });
             options.push({
-                label: 'Drop',
+                label: 'Drop All',
                 action: function () {
                     nuiCallback('dropItem', {
                         grid: gridId,
@@ -469,6 +472,22 @@ window.CNBT = (function () {
                     updateWeightDisplays();
                 },
             });
+
+            // Drop specific quantity (only if stackable and count > 1)
+            if (def.stackable && (item.count || 1) > 1) {
+                options.push({
+                    label: 'Drop Amount...',
+                    action: function () {
+                        showDropQuantityDialog({
+                            grid: grid,
+                            gridId: gridId,
+                            itemIndex: itemIndex,
+                            item: item,
+                            def: def,
+                        });
+                    },
+                });
+            }
 
             showContextMenu(e.clientX, e.clientY, options);
         });
@@ -600,6 +619,59 @@ window.CNBT = (function () {
 
     function hideSplitDialog() {
         document.getElementById('split-dialog').classList.add('hidden');
+    }
+
+    // ============================================
+    // DROP QUANTITY DIALOG (reuses split dialog UI)
+    // ============================================
+
+    function showDropQuantityDialog(target) {
+        const dialog = document.getElementById('split-dialog');
+        dialog.classList.remove('hidden');
+
+        const totalCount = target.item.count || 1;
+        document.getElementById('split-item-name').textContent = 'Drop: ' + target.def.label;
+        document.getElementById('split-total').textContent = `Total: ${totalCount}`;
+
+        const slider = document.getElementById('split-slider');
+        slider.min = 1;
+        slider.max = totalCount;
+        slider.value = 1;
+        updateDropQuantityDisplay(totalCount, 1);
+
+        slider.oninput = function () {
+            updateDropQuantityDisplay(totalCount, parseInt(this.value));
+        };
+
+        document.getElementById('split-confirm').onclick = function () {
+            const dropCount = parseInt(slider.value);
+            nuiCallback('dropItem', {
+                grid: target.gridId,
+                itemIndex: target.itemIndex + 1,
+                count: dropCount,
+            });
+
+            // Optimistic update
+            if (dropCount >= totalCount) {
+                target.grid.removeItem(target.itemIndex);
+            } else {
+                target.item.count = totalCount - dropCount;
+                const countEl = target.item.el ? target.item.el.querySelector('.item-count') : null;
+                if (countEl) countEl.textContent = `${target.item.count}/${target.def.maxStack}`;
+            }
+
+            updateWeightDisplays();
+            hideSplitDialog();
+        };
+
+        document.getElementById('split-cancel').onclick = function () {
+            hideSplitDialog();
+        };
+    }
+
+    function updateDropQuantityDisplay(total, dropVal) {
+        document.getElementById('split-left').textContent = 'Keep: ' + (total - dropVal);
+        document.getElementById('split-right').textContent = 'Drop: ' + dropVal;
     }
 
     function handleSplitSuccess(data) {
@@ -786,7 +858,13 @@ window.CNBT = (function () {
 
     function updateWeightDisplays() {
         if (playerGrid) {
-            const w = playerGrid.getWeight();
+            // Player weight = items in player grid + backpack shell weight + backpack contents
+            let w = playerGrid.getWeight();
+            if (equippedBackpack) {
+                const bpDef = itemDefs[equippedBackpack.name];
+                if (bpDef) w += bpDef.weight; // backpack shell weight
+                if (backpackGrid) w += backpackGrid.getWeight(); // backpack contents
+            }
             const el = document.getElementById('player-weight');
             el.textContent = `${(w / 1000).toFixed(1)} / ${(playerGrid.maxWeight / 1000).toFixed(1)} kg`;
             el.classList.toggle('overweight', w > playerGrid.maxWeight);

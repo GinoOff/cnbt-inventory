@@ -53,3 +53,33 @@ Config.Backpacks = {
     ['backpack_large']  = { cols = 6, rows = 6, maxWeight = 30000 },
     ['backpack_tactical'] = { cols = 7, rows = 6, maxWeight = 40000 },
 }
+
+-- Drop bag prop model
+Config.DropPropModel = 'prop_cs_rucksack'
+
+-- Item use effects (esx_status integration + custom exports)
+-- Each item can define an onUse handler:
+--   status = { hunger = amount, thirst = amount, stress = amount }
+--   export = { resource = 'resource_name', export = 'exportFunction' }
+--   event  = { server = 'event:name' } or { client = 'event:name' }
+Config.ItemEffects = {
+    ['water'] = {
+        status = { thirst = 200000 },
+    },
+    ['bread'] = {
+        status = { hunger = 200000 },
+    },
+    ['energy_drink'] = {
+        status = { thirst = 100000, hunger = 50000 },
+    },
+    ['canned_food'] = {
+        status = { hunger = 300000 },
+    },
+    ['bandage'] = {
+        event = { client = 'cnbt-inventory:client:useBandage' },
+    },
+    -- Example custom export:
+    -- ['phone'] = {
+    --     export = { resource = 'gcphone', export = 'togglePhone' },
+    -- },
+}

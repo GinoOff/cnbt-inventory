@@ -1,31 +1,38 @@
 -- Client-side drop rendering and interaction
+-- One bag prop per drop zone (mini-stash), NOT one prop per item
 
-local activeDrops = {} -- dropId -> { coords, blip, object }
+local activeDrops = {} -- dropId -> { coords, object }
 local nearbyDrop = nil
+local propModelHash = nil
 
 -- ============================================
 -- DROP MANAGEMENT
 -- ============================================
 
-local function createDropVisual(dropId, coords)
-    if activeDrops[dropId] then return end
+local function ensureModel()
+    if propModelHash and HasModelLoaded(propModelHash) then return true end
 
-    -- Create a small prop on the ground
-    local model = GetHashKey('prop_cs_box_clothes')
-    RequestModel(model)
+    propModelHash = GetHashKey(Config.DropPropModel or 'prop_cs_rucksack')
+    RequestModel(propModelHash)
+
     local timeout = 0
-    while not HasModelLoaded(model) and timeout < 50 do
+    while not HasModelLoaded(propModelHash) and timeout < 100 do
         Wait(10)
         timeout = timeout + 1
     end
 
+    return HasModelLoaded(propModelHash)
+end
+
+local function createDropVisual(dropId, coords)
+    if activeDrops[dropId] then return end
+
     local obj = nil
-    if HasModelLoaded(model) then
-        obj = CreateObject(model, coords.x, coords.y, coords.z - 0.5, false, false, false)
+    if ensureModel() then
+        obj = CreateObject(propModelHash, coords.x, coords.y, coords.z, false, false, false)
         PlaceObjectOnGroundProperly(obj)
         FreezeEntityPosition(obj, true)
         SetEntityCollision(obj, false, false)
-        SetModelAsNoLongerNeeded(model)
     end
 
     activeDrops[dropId] = {
@@ -93,7 +100,7 @@ end)
 -- Draw prompt when near a drop (separate thread for rendering)
 CreateThread(function()
     while true do
-        if nearbyDrop then
+        if nearbyDrop and activeDrops[nearbyDrop] then
             DrawText3D(activeDrops[nearbyDrop].coords, '[E] Pick up')
             Wait(0) -- render every frame
         else
@@ -134,5 +141,8 @@ AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
     for id, _ in pairs(activeDrops) do
         removeDropVisual(id)
+    end
+    if propModelHash then
+        SetModelAsNoLongerNeeded(propModelHash)
     end
 end)
