@@ -18,6 +18,8 @@
     --success-glow: rgba(74, 255, 126, 0.25);
     --danger: #ff4a4a;
     --danger-glow: rgba(255, 74, 74, 0.25);
+    --select-color: #ffd74a;
+    --select-glow: rgba(255, 215, 74, 0.35);
     --text-primary: #e0e0e0;
     --text-secondary: #888;
     --text-dim: #555;
@@ -26,6 +28,7 @@
     --ctx-bg: rgba(20, 20, 20, 0.97);
     --transition-fast: 0.12s;
     --transition-med: 0.2s;
+    --slide-duration: 0.3s;
 }
 
 * {
@@ -50,28 +53,63 @@ body {
 }
 
 /* ============================================
-   LAYOUT
+   LAYOUT - right-aligned, transparent bg
    ============================================ */
 
 #inventory-container {
     position: fixed;
     top: 0;
-    left: 0;
-    width: 100%;
+    right: 0;
+    width: auto;
     height: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    padding-right: 20px;
+    /* NO background, NO backdrop-filter - fully transparent */
+    background: transparent;
     z-index: 100;
-    animation: fadeIn 0.15s ease-out;
+    pointer-events: none; /* let clicks through to the game */
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+/* All child panels get pointer-events back */
+#inventory-container > * {
+    pointer-events: auto;
+}
+
+/* Slide-in from right animation */
+#inventory-container.slide-in #inventory-panels,
+#inventory-container.slide-in #top-bar {
+    animation: slideInRight var(--slide-duration) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Slide-out to right animation */
+#inventory-container.slide-out #inventory-panels,
+#inventory-container.slide-out #top-bar {
+    animation: slideOutRight var(--slide-duration) cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translate3d(120%, 0, 0);
+        opacity: 0;
+    }
+    to {
+        transform: translate3d(0, 0, 0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translate3d(0, 0, 0);
+        opacity: 1;
+    }
+    to {
+        transform: translate3d(120%, 0, 0);
+        opacity: 0;
+    }
 }
 
 #top-bar {
@@ -79,12 +117,14 @@ body {
     align-items: center;
     gap: 20px;
     margin-bottom: 12px;
+    will-change: transform, opacity;
 }
 
 #inventory-panels {
     display: flex;
     gap: 16px;
     align-items: flex-start;
+    will-change: transform, opacity;
 }
 
 /* ============================================
@@ -134,7 +174,6 @@ body {
     display: grid;
     gap: var(--cell-gap);
     position: relative;
-    /* will-change on the container for composited children */
 }
 
 .grid-cell {
@@ -175,7 +214,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: box-shadow var(--transition-fast) ease;
+    transition: box-shadow var(--transition-fast) ease, border-color var(--transition-fast) ease;
     will-change: transform;
     z-index: 5;
 }
@@ -184,6 +223,17 @@ body {
     border-color: var(--accent);
     box-shadow: 0 0 8px var(--accent-glow);
     z-index: 6;
+}
+
+.grid-item.selected {
+    border-color: var(--select-color);
+    box-shadow: 0 0 10px var(--select-glow);
+    z-index: 7;
+}
+
+.grid-item.selected:hover {
+    border-color: var(--select-color);
+    box-shadow: 0 0 14px var(--select-glow);
 }
 
 .grid-item.dragging {
@@ -415,7 +465,7 @@ body {
     background: var(--ctx-bg);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    min-width: 140px;
+    min-width: 160px;
     padding: 4px 0;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
     z-index: 500;
@@ -437,6 +487,15 @@ body {
 
 .ctx-item:hover {
     background: rgba(74, 158, 255, 0.2);
+}
+
+.ctx-header {
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .ctx-separator {
@@ -582,7 +641,6 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    /* GPU composited */
     will-change: transform;
     transform: translate3d(0, 0, 0);
 }

@@ -35,6 +35,11 @@ window.CNBT = (function () {
     // Context menu state
     let contextTarget = null;
 
+    // Multi-select state: [{gridId, itemIndex, item}]
+    let selectedItems = [];
+    let lastClickedIndex = -1; // for shift+click range select
+    let lastClickedGrid = null;
+
     // ============================================
     // NUI COMMUNICATION
     // ============================================
@@ -96,13 +101,18 @@ window.CNBT = (function () {
     // OPEN / CLOSE
     // ============================================
 
+    let closeAnimTimeout = null;
+
     function handleOpen(msg) {
         itemDefs = msg.itemDefs || {};
         backpackConfigs = msg.backpackConfigs || {};
         hotbarSlotCount = msg.hotbarSlots || 5;
 
         const container = document.getElementById('inventory-container');
-        container.classList.remove('hidden');
+        // Cancel any pending close animation
+        if (closeAnimTimeout) { clearTimeout(closeAnimTimeout); closeAnimTimeout = null; }
+        container.classList.remove('hidden', 'slide-out');
+        container.classList.add('slide-in');
 
         // Setup player grid
         const playerEl = document.getElementById('player-grid');
@@ -111,7 +121,7 @@ window.CNBT = (function () {
         if (playerGrid) playerGrid.destroy();
         playerGrid = new InventoryGrid(playerEl, pd.cols, pd.rows, pd.maxWeight, 'player');
         playerGrid.loadItems(pd.items || []);
-        gridMeta['player'] = { owner: null, invType: 'player' }; // null owner = current player
+        gridMeta['player'] = { owner: null, invType: 'player' };
 
         // Hotbar
         hotbar = pd.hotbar || [];
@@ -135,23 +145,31 @@ window.CNBT = (function () {
         }
 
         updateWeightDisplays();
-
-        // Close context menu if open
+        clearSelection();
         hideContextMenu();
         hideSplitDialog();
     }
 
     function handleClose() {
         const container = document.getElementById('inventory-container');
-        container.classList.add('hidden');
+        // Play slide-out animation, then hide
+        container.classList.remove('slide-in');
+        container.classList.add('slide-out');
 
-        if (playerGrid) { playerGrid.destroy(); playerGrid = null; }
-        if (backpackGrid) { backpackGrid.destroy(); backpackGrid = null; }
-        if (externalGrid) { externalGrid.destroy(); externalGrid = null; }
+        closeAnimTimeout = setTimeout(function () {
+            container.classList.add('hidden');
+            container.classList.remove('slide-out');
 
-        hideContextMenu();
-        hideSplitDialog();
-        hideTooltip();
+            if (playerGrid) { playerGrid.destroy(); playerGrid = null; }
+            if (backpackGrid) { backpackGrid.destroy(); backpackGrid = null; }
+            if (externalGrid) { externalGrid.destroy(); externalGrid = null; }
+
+            clearSelection();
+            hideContextMenu();
+            hideSplitDialog();
+            hideTooltip();
+            closeAnimTimeout = null;
+        }, 300); // match --slide-duration
     }
 
     // ============================================
@@ -396,6 +414,95 @@ window.CNBT = (function () {
     }
 
     // ============================================
+    // MULTI-SELECT (Ctrl+click, Shift+click)
+    // ============================================
+
+    function initSelection() {
+        document.addEventListener('click', function (e) {
+            if (DragSystem.isActive()) return;
+            if (e.target.closest('#context-menu')) return;
+
+            const itemEl = e.target.closest('.grid-item');
+
+            // Clicking empty space clears selection (unless holding Ctrl)
+            if (!itemEl) {
+                if (!e.ctrlKey && !e.metaKey) {
+                    clearSelection();
+                }
+                hideContextMenu();
+                return;
+            }
+
+            const gridId = itemEl.dataset.gridId;
+            const itemIndex = parseInt(itemEl.dataset.itemIndex);
+            const grid = getGrid(gridId);
+            if (!grid) return;
+
+            const item = grid.getItem(itemIndex);
+            if (!item) return;
+
+            if (e.shiftKey && lastClickedGrid === gridId && lastClickedIndex >= 0) {
+                // Shift+click: select range between last clicked and current
+                const minIdx = Math.min(lastClickedIndex, itemIndex);
+                const maxIdx = Math.max(lastClickedIndex, itemIndex);
+                if (!e.ctrlKey && !e.metaKey) clearSelection();
+                for (let i = minIdx; i <= maxIdx; i++) {
+                    const rangeItem = grid.getItem(i);
+                    if (rangeItem && !isSelected(gridId, i)) {
+                        addToSelection(gridId, i, rangeItem, grid);
+                    }
+                }
+            } else if (e.ctrlKey || e.metaKey) {
+                // Ctrl+click: toggle selection
+                if (isSelected(gridId, itemIndex)) {
+                    removeFromSelection(gridId, itemIndex);
+                } else {
+                    addToSelection(gridId, itemIndex, item, grid);
+                }
+                lastClickedIndex = itemIndex;
+                lastClickedGrid = gridId;
+            } else {
+                // Normal click: select only this item
+                clearSelection();
+                addToSelection(gridId, itemIndex, item, grid);
+                lastClickedIndex = itemIndex;
+                lastClickedGrid = gridId;
+            }
+        });
+    }
+
+    function isSelected(gridId, itemIndex) {
+        return selectedItems.some(s => s.gridId === gridId && s.itemIndex === itemIndex);
+    }
+
+    function addToSelection(gridId, itemIndex, item, grid) {
+        if (isSelected(gridId, itemIndex)) return;
+        selectedItems.push({ gridId, itemIndex, item, grid });
+        if (item.el) item.el.classList.add('selected');
+    }
+
+    function removeFromSelection(gridId, itemIndex) {
+        const idx = selectedItems.findIndex(s => s.gridId === gridId && s.itemIndex === itemIndex);
+        if (idx === -1) return;
+        const sel = selectedItems[idx];
+        if (sel.item && sel.item.el) sel.item.el.classList.remove('selected');
+        selectedItems.splice(idx, 1);
+    }
+
+    function clearSelection() {
+        for (const sel of selectedItems) {
+            if (sel.item && sel.item.el) sel.item.el.classList.remove('selected');
+        }
+        selectedItems = [];
+        lastClickedIndex = -1;
+        lastClickedGrid = null;
+    }
+
+    function getSelectionCount() {
+        return selectedItems.length;
+    }
+
+    // ============================================
     // CONTEXT MENU
     // ============================================
 
@@ -422,82 +529,139 @@ window.CNBT = (function () {
             const def = itemDefs[item.name];
             if (!def) return;
 
+            // If right-clicking on a non-selected item without Ctrl, select only it
+            if (!isSelected(gridId, itemIndex) && !e.ctrlKey && !e.metaKey) {
+                clearSelection();
+                addToSelection(gridId, itemIndex, item, grid);
+            }
+            // If right-clicking on a selected item, keep current selection
+            // If Ctrl+right-click on unselected, add to selection
+            if (!isSelected(gridId, itemIndex)) {
+                addToSelection(gridId, itemIndex, item, grid);
+            }
+
             contextTarget = { grid, gridId, itemIndex, item, def };
 
-            const options = [];
-
-            // Use
-            if (def.usable) {
-                options.push({
-                    label: 'Use',
-                    action: function () {
-                        nuiCallback('useItem', {
-                            grid: gridId,
-                            itemIndex: itemIndex + 1,
-                        });
-                    },
-                });
+            // Build context menu based on single vs multi-select
+            if (selectedItems.length > 1) {
+                buildMultiSelectContextMenu(e.clientX, e.clientY);
+            } else {
+                buildSingleItemContextMenu(e.clientX, e.clientY, gridId, itemIndex, item, def, grid);
             }
+        });
+    }
 
-            // Split (only if stackable and count > 1)
-            if (def.stackable && (item.count || 1) > 1) {
-                options.push({
-                    label: 'Split',
-                    action: function () {
-                        showSplitDialog(contextTarget);
-                    },
-                });
-            }
+    function buildSingleItemContextMenu(x, y, gridId, itemIndex, item, def, grid) {
+        const options = [];
 
-            // Assign to hotbar
+        // Use
+        if (def.usable) {
             options.push({
-                label: 'Assign to Hotbar',
-                submenu: true,
+                label: 'Use',
                 action: function () {
-                    showHotbarAssignMenu(e.clientX, e.clientY, contextTarget);
-                },
-            });
-
-            // Drop
-            options.push({ separator: true });
-            options.push({
-                label: 'Drop All',
-                action: function () {
-                    nuiCallback('dropItem', {
+                    nuiCallback('useItem', {
                         grid: gridId,
                         itemIndex: itemIndex + 1,
-                        count: item.count || 1,
                     });
-                    grid.removeItem(itemIndex);
-                    updateWeightDisplays();
                 },
             });
+        }
 
-            // Drop specific quantity (only if stackable and count > 1)
-            if (def.stackable && (item.count || 1) > 1) {
-                options.push({
-                    label: 'Drop Amount...',
-                    action: function () {
-                        showDropQuantityDialog({
-                            grid: grid,
-                            gridId: gridId,
-                            itemIndex: itemIndex,
-                            item: item,
-                            def: def,
-                        });
-                    },
+        // Split (only if stackable and count > 1)
+        if (def.stackable && (item.count || 1) > 1) {
+            options.push({
+                label: 'Split',
+                action: function () {
+                    showSplitDialog({ grid, gridId, itemIndex, item, def });
+                },
+            });
+        }
+
+        // Assign to hotbar
+        options.push({
+            label: 'Assign to Hotbar',
+            action: function () {
+                showHotbarAssignMenu(x, y, { item, gridId });
+            },
+        });
+
+        // Drop
+        options.push({ separator: true });
+        options.push({
+            label: 'Drop All',
+            action: function () {
+                nuiCallback('dropItem', {
+                    grid: gridId,
+                    itemIndex: itemIndex + 1,
+                    count: item.count || 1,
                 });
-            }
-
-            showContextMenu(e.clientX, e.clientY, options);
+                grid.removeItem(itemIndex);
+                clearSelection();
+                updateWeightDisplays();
+            },
         });
 
-        // Close context menu on left click
-        document.addEventListener('click', function (e) {
-            if (!e.target.closest('#context-menu')) {
-                hideContextMenu();
-            }
+        // Drop specific quantity (only if stackable and count > 1)
+        if (def.stackable && (item.count || 1) > 1) {
+            options.push({
+                label: 'Drop Amount...',
+                action: function () {
+                    showDropQuantityDialog({ grid, gridId, itemIndex, item, def });
+                },
+            });
+        }
+
+        showContextMenu(x, y, options);
+    }
+
+    function buildMultiSelectContextMenu(x, y) {
+        const count = selectedItems.length;
+        const options = [];
+
+        // Header showing count
+        options.push({ header: `${count} items selected` });
+        options.push({ separator: true });
+
+        // Drop all selected
+        options.push({
+            label: `Drop All (${count})`,
+            action: function () {
+                // Drop in reverse index order to avoid index shifting issues
+                const sorted = [...selectedItems].sort((a, b) => b.itemIndex - a.itemIndex);
+                for (const sel of sorted) {
+                    nuiCallback('dropItem', {
+                        grid: sel.gridId,
+                        itemIndex: sel.itemIndex + 1,
+                        count: sel.item.count || 1,
+                    });
+                    sel.grid.removeItem(sel.itemIndex);
+                }
+                clearSelection();
+                updateWeightDisplays();
+            },
         });
+
+        // Use all selected (if all are usable)
+        const allUsable = selectedItems.every(s => {
+            const d = itemDefs[s.item.name];
+            return d && d.usable;
+        });
+        if (allUsable) {
+            options.push({
+                label: `Use All (${count})`,
+                action: function () {
+                    for (const sel of selectedItems) {
+                        nuiCallback('useItem', {
+                            grid: sel.gridId,
+                            itemIndex: sel.itemIndex + 1,
+                        });
+                    }
+                    clearSelection();
+                },
+            });
+        }
+
+        showContextMenu(x, y, options);
     }
 
     function showContextMenu(x, y, options) {
@@ -512,6 +676,13 @@ window.CNBT = (function () {
                 menu.appendChild(sep);
                 continue;
             }
+            if (opt.header) {
+                const hdr = document.createElement('div');
+                hdr.className = 'ctx-header';
+                hdr.textContent = opt.header;
+                menu.appendChild(hdr);
+                continue;
+            }
 
             const item = document.createElement('div');
             item.className = 'ctx-item';
@@ -523,10 +694,9 @@ window.CNBT = (function () {
             menu.appendChild(item);
         }
 
-        // Position
-        const menuRect = menu.getBoundingClientRect();
-        const maxX = window.innerWidth - 160;
-        const maxY = window.innerHeight - menu.offsetHeight;
+        // Position - ensure menu stays on screen
+        const maxX = window.innerWidth - 170;
+        const maxY = window.innerHeight - menu.offsetHeight - 10;
         menu.style.left = Math.min(x, maxX) + 'px';
         menu.style.top = Math.min(y, maxY) + 'px';
     }
@@ -967,6 +1137,7 @@ window.CNBT = (function () {
 
     function init() {
         DragSystem.init();
+        initSelection();
         initContextMenu();
         initSort();
         initTooltip();

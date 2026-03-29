@@ -5,13 +5,13 @@ local currentExternal = nil
 local lastUseTime = 0
 
 -- ============================================
--- DISABLE GTA WEAPON WHEEL
+-- DISABLE GTA WEAPON WHEEL + CONTROL MANAGEMENT
 -- ============================================
 
 CreateThread(function()
     while true do
         Wait(0)
-        -- Block weapon wheel (TAB default, and weapon select keys)
+        -- Block weapon wheel always
         DisableControlAction(0, 37, true)  -- Weapon wheel (TAB)
         BlockWeaponWheelThisFrame()
         DisableControlAction(0, 157, true) -- Weapon wheel next
@@ -27,6 +27,29 @@ CreateThread(function()
         DisableControlAction(0, 173, true) -- Select weapon slot 4
         DisableControlAction(0, 174, true) -- Select weapon slot 5
         DisableControlAction(0, 175, true) -- Select weapon slot 6
+
+        -- When inventory is open: block actions that conflict with NUI
+        if isOpen then
+            DisableControlAction(0, 1, true)   -- Mouse look LR (let NUI handle mouse)
+            DisableControlAction(0, 2, true)   -- Mouse look UD
+            DisableControlAction(0, 24, true)  -- Attack
+            DisableControlAction(0, 25, true)  -- Aim
+            DisableControlAction(0, 44, true)  -- Cover
+            DisableControlAction(0, 50, true)  -- Accurate aim
+            DisableControlAction(0, 68, true)  -- Aim (alt)
+            DisableControlAction(0, 69, true)  -- Aim (alt2)
+            DisableControlAction(0, 70, true)  -- Aim (alt3)
+            DisableControlAction(0, 91, true)  -- Passenger aim
+            DisableControlAction(0, 92, true)  -- Passenger attack
+            DisableControlAction(0, 114, true) -- Fly attack
+            DisableControlAction(0, 142, true) -- Melee alt
+            DisableControlAction(0, 257, true) -- Attack 2
+            DisableControlAction(0, 263, true) -- Melee
+            DisableControlAction(0, 264, true) -- Melee alt2
+            DisableControlAction(0, 140, true) -- Melee light
+            DisableControlAction(0, 141, true) -- Melee heavy
+            DisableControlAction(0, 143, true) -- Melee block
+        end
     end
 end)
 
@@ -44,6 +67,7 @@ local function closeInventory()
     isOpen = false
     currentExternal = nil
     SetNuiFocus(false, false)
+    SetNuiFocusKeepInput(false)
     SendNUIMessage({ type = 'close' })
     TriggerServerEvent('cnbt-inventory:server:closeInventory')
 end
@@ -83,6 +107,7 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
     end
 
     SetNuiFocus(true, true)
+    SetNuiFocusKeepInput(true) -- allow player to move while inventory is open
     SendNUIMessage({
         type = 'open',
         playerData = playerData,
