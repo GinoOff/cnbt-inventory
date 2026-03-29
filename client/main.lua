@@ -93,6 +93,7 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
             usable = def.usable,
             image = def.image,
             category = def.category,
+            weaponHash = def.weaponHash,
         }
     end
 
@@ -223,6 +224,16 @@ RegisterNUICallback('updateHotbar', function(data, cb)
     cb('ok')
 end)
 
+RegisterNUICallback('openGunsmith', function(data, cb)
+    -- Request gunsmith data from server (attachments, available items)
+    TriggerServerEvent('cnbt-inventory:server:requestGunsmithData', {
+        itemIndex = data.itemIndex,
+        gridId = data.gridId,
+        weaponName = data.weaponName,
+    })
+    cb('ok')
+end)
+
 RegisterNUICallback('sortInventory', function(data, cb)
     TriggerServerEvent('cnbt-inventory:server:sortInventory', data)
     cb('ok')
@@ -278,7 +289,7 @@ end)
 
 -- Weapon equip/unequip handler (triggered by server when a weapon item is used)
 RegisterNetEvent('cnbt-inventory:client:equipWeapon')
-AddEventHandler('cnbt-inventory:client:equipWeapon', function(weaponHash, itemName)
+AddEventHandler('cnbt-inventory:client:equipWeapon', function(weaponHash, itemName, weaponAttachments)
     local ped = PlayerPedId()
     local hash = GetHashKey(weaponHash)
 
@@ -296,6 +307,17 @@ AddEventHandler('cnbt-inventory:client:equipWeapon', function(weaponHash, itemNa
         GiveWeaponToPed(ped, hash, 0, false, true)
         SetCurrentPedWeapon(ped, hash, true)
         equippedWeapon = weaponHash
+
+        -- Apply saved attachments as GTA weapon components
+        if weaponAttachments and Config.AttachmentComponents then
+            for slot, attName in pairs(weaponAttachments) do
+                local compMap = Config.AttachmentComponents[attName]
+                if compMap and compMap[itemName] then
+                    local compHash = GetHashKey(compMap[itemName])
+                    GiveWeaponComponentToPed(ped, hash, compHash)
+                end
+            end
+        end
     end
 end)
 

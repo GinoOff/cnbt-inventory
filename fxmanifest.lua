@@ -18,6 +18,7 @@ shared_scripts {
 client_scripts {
     'client/main.lua',
     'client/drops.lua',
+    'client/gunsmith.lua',
 }
 
 server_scripts {
@@ -33,6 +34,7 @@ files {
     'html/css/style.css',
     'html/js/grid.js',
     'html/js/drag.js',
+    'html/js/gunsmith.js',
     'html/js/app.js',
     'html/img/*.png',
 }

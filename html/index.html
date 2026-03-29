@@ -97,8 +97,46 @@
     <!-- Grid highlight overlay cells (reused pool) -->
     <div id="highlight-pool"></div>
 
+    <!-- Gunsmith Overlay (CoD MW3 style) -->
+    <div id="gunsmith-overlay" class="hidden">
+        <!-- Close button -->
+        <button id="gunsmith-close" title="Close">&times;</button>
+
+        <!-- Weapon title -->
+        <div id="gunsmith-header">
+            <h2 id="gunsmith-weapon-title"></h2>
+            <span id="gunsmith-subtitle">Weapon Customization</span>
+        </div>
+
+        <!-- Slot containers (left and right of viewport) -->
+        <div id="gunsmith-slots">
+            <!-- Populated dynamically by gunsmith.js -->
+        </div>
+
+        <!-- Transparent viewport - game renders 3D weapon here -->
+        <div id="gunsmith-viewport"></div>
+
+        <!-- Attachment picker panel (bottom) -->
+        <div id="gunsmith-picker" class="hidden">
+            <div id="gunsmith-picker-header">
+                <h3 id="gunsmith-picker-title">Select Attachment</h3>
+            </div>
+            <div id="gunsmith-picker-list">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div id="gunsmith-instructions">
+            <span>Drag to rotate</span>
+            <span>Click a slot to manage attachments</span>
+            <span>ESC to close</span>
+        </div>
+    </div>
+
     <script src="js/grid.js"></script>
     <script src="js/drag.js"></script>
+    <script src="js/gunsmith.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

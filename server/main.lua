@@ -532,7 +532,8 @@ AddEventHandler('cnbt-inventory:server:useItem', function(data)
 
     -- Weapon equip: if item has a weaponHash, trigger client equip (toggle)
     if def.weaponHash then
-        TriggerClientEvent('cnbt-inventory:client:equipWeapon', src, def.weaponHash, item.name)
+        local weaponAttachments = item.metadata and item.metadata.attachments or nil
+        TriggerClientEvent('cnbt-inventory:client:equipWeapon', src, def.weaponHash, item.name, weaponAttachments)
         -- Weapons are NOT consumed on use, so skip the consumable logic
         TriggerClientEvent('cnbt-inventory:client:useSuccess', src, data)
         return
@@ -777,6 +778,244 @@ AddEventHandler('cnbt-inventory:server:sortInventory', function(data)
         items = placed,
         owner = owner,
         invType = invType,
+    })
+end)
+
+-- ============================================
+-- GUNSMITH - Weapon Attachment System
+-- ============================================
+
+-- Attach an attachment to a weapon
+RegisterNetEvent('cnbt-inventory:server:gunsmithAttach')
+AddEventHandler('cnbt-inventory:server:gunsmithAttach', function(data)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    local inv = loadInventory(identifier, 'player')
+    local gridItems = inv.items
+
+    -- Validate weapon item
+    local weaponIdx = data.weaponItemIndex
+    if not gridItems[weaponIdx] then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Weapon not found')
+        return
+    end
+
+    local weaponItem = gridItems[weaponIdx]
+    if weaponItem.name ~= data.weaponName then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Weapon mismatch')
+        return
+    end
+
+    -- Check weapon has this slot
+    local weaponSlots = Config.WeaponAttachments[data.weaponName]
+    if not weaponSlots or not weaponSlots[data.slot] then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Invalid slot')
+        return
+    end
+
+    -- Check attachment is compatible with this slot
+    local compatible = false
+    for _, attName in ipairs(weaponSlots[data.slot]) do
+        if attName == data.attachmentName then
+            compatible = true
+            break
+        end
+    end
+    if not compatible then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Incompatible attachment')
+        return
+    end
+
+    -- Check slot isn't already occupied
+    local attachments = weaponItem.metadata and weaponItem.metadata.attachments or {}
+    if attachments[data.slot] then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Slot already occupied')
+        return
+    end
+
+    -- Find and remove the attachment item from player inventory
+    local attFound = false
+    for i, item in ipairs(gridItems) do
+        if item.name == data.attachmentName and i ~= weaponIdx then
+            -- Remove 1 from stack (or remove entirely)
+            if (item.count or 1) > 1 then
+                item.count = item.count - 1
+            else
+                table.remove(gridItems, i)
+                -- Adjust weaponIdx if needed
+                if i < weaponIdx then
+                    weaponIdx = weaponIdx - 1
+                    weaponItem = gridItems[weaponIdx]
+                end
+            end
+            attFound = true
+            break
+        end
+    end
+
+    -- Also check backpack
+    if not attFound and inv.backpack and inv.backpack.items then
+        for i, item in ipairs(inv.backpack.items) do
+            if item.name == data.attachmentName then
+                if (item.count or 1) > 1 then
+                    item.count = item.count - 1
+                else
+                    table.remove(inv.backpack.items, i)
+                end
+                attFound = true
+                break
+            end
+        end
+    end
+
+    if not attFound then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Attachment not in inventory')
+        return
+    end
+
+    -- Apply attachment to weapon metadata
+    if not weaponItem.metadata then weaponItem.metadata = {} end
+    if not weaponItem.metadata.attachments then weaponItem.metadata.attachments = {} end
+    weaponItem.metadata.attachments[data.slot] = data.attachmentName
+
+    markDirty(identifier, 'player')
+
+    TriggerClientEvent('cnbt-inventory:client:gunsmithAttachSuccess', src, {
+        slot = data.slot,
+        attachmentName = data.attachmentName,
+        weaponName = data.weaponName,
+        updatedAttachments = weaponItem.metadata.attachments,
+        updatedItems = inv.items,
+    })
+end)
+
+-- Detach an attachment from a weapon
+RegisterNetEvent('cnbt-inventory:server:gunsmithDetach')
+AddEventHandler('cnbt-inventory:server:gunsmithDetach', function(data)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    local inv = loadInventory(identifier, 'player')
+    local gridItems = inv.items
+
+    -- Validate weapon
+    local weaponIdx = data.weaponItemIndex
+    if not gridItems[weaponIdx] then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Weapon not found')
+        return
+    end
+
+    local weaponItem = gridItems[weaponIdx]
+    if weaponItem.name ~= data.weaponName then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Weapon mismatch')
+        return
+    end
+
+    -- Check slot has an attachment
+    local attachments = weaponItem.metadata and weaponItem.metadata.attachments or {}
+    local attName = attachments[data.slot]
+    if not attName then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'No attachment in slot')
+        return
+    end
+
+    -- Find free space in player inventory for the returned attachment
+    local attDef = getItemDef(attName)
+    if not attDef then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'Unknown attachment item')
+        return
+    end
+
+    local px, py, pRotated = findFreePosition(gridItems, Config.PlayerCols, Config.PlayerRows, attDef.sizeX, attDef.sizeY)
+
+    -- Also try backpack if no space in main grid
+    local addedToBackpack = false
+    if not px and inv.backpack and inv.backpack.items then
+        local bpDef = Config.Backpacks[inv.backpack.name]
+        if bpDef then
+            px, py, pRotated = findFreePosition(inv.backpack.items, bpDef.cols, bpDef.rows, attDef.sizeX, attDef.sizeY)
+            if px then addedToBackpack = true end
+        end
+    end
+
+    if not px then
+        TriggerClientEvent('cnbt-inventory:client:gunsmithFailed', src, 'No space for attachment')
+        return
+    end
+
+    -- Remove attachment from weapon metadata
+    weaponItem.metadata.attachments[data.slot] = nil
+
+    -- Add attachment item back to inventory
+    local newItem = {
+        name = attName,
+        x = px,
+        y = py,
+        rotated = pRotated,
+        count = 1,
+        metadata = {},
+    }
+
+    if addedToBackpack then
+        table.insert(inv.backpack.items, newItem)
+    else
+        table.insert(gridItems, newItem)
+    end
+
+    markDirty(identifier, 'player')
+
+    TriggerClientEvent('cnbt-inventory:client:gunsmithDetachSuccess', src, {
+        slot = data.slot,
+        attachmentName = attName,
+        weaponName = data.weaponName,
+        updatedAttachments = weaponItem.metadata.attachments,
+        updatedItems = inv.items,
+    })
+end)
+
+-- Get weapon attachments data for gunsmith opening
+RegisterNetEvent('cnbt-inventory:server:requestGunsmithData')
+AddEventHandler('cnbt-inventory:server:requestGunsmithData', function(data)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    local inv = loadInventory(identifier, 'player')
+    local gridItems = inv.items
+
+    local weaponIdx = data.itemIndex
+    if not gridItems[weaponIdx] then return end
+
+    local weaponItem = gridItems[weaponIdx]
+    local attachments = weaponItem.metadata and weaponItem.metadata.attachments or {}
+
+    -- Gather which attachment items the player has (in main + backpack)
+    local playerAttachments = {}
+    for _, item in ipairs(gridItems) do
+        if item.name and Items[item.name] and Items[item.name].category == 'attachment' then
+            playerAttachments[item.name] = (playerAttachments[item.name] or 0) + (item.count or 1)
+        end
+    end
+    if inv.backpack and inv.backpack.items then
+        for _, item in ipairs(inv.backpack.items) do
+            if item.name and Items[item.name] and Items[item.name].category == 'attachment' then
+                playerAttachments[item.name] = (playerAttachments[item.name] or 0) + (item.count or 1)
+            end
+        end
+    end
+
+    TriggerClientEvent('cnbt-inventory:client:openGunsmithData', src, {
+        weaponName = weaponItem.name,
+        itemIndex = weaponIdx,
+        gridId = data.gridId,
+        attachments = attachments,
+        playerAttachments = playerAttachments,
     })
 end)
 

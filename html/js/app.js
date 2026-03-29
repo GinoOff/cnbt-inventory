@@ -94,6 +94,13 @@ window.CNBT = (function () {
             case 'useHotbar':
                 useHotbarSlot(msg.slot);
                 break;
+            // Gunsmith messages
+            case 'openGunsmith':
+            case 'closeGunsmith':
+            case 'gunsmithAttachSuccess':
+            case 'gunsmithDetachSuccess':
+                if (window.Gunsmith) window.Gunsmith.handleMessage(msg);
+                break;
         }
     });
 
@@ -562,6 +569,20 @@ window.CNBT = (function () {
                     nuiCallback('useItem', {
                         grid: gridId,
                         itemIndex: itemIndex + 1,
+                    });
+                },
+            });
+        }
+
+        // Accessories (only for weapons with attachment slots, player grid only)
+        if (def.category === 'weapon' && def.weaponHash && gridId === 'player') {
+            options.push({
+                label: 'Accessories',
+                action: function () {
+                    nuiCallback('openGunsmith', {
+                        itemIndex: itemIndex + 1,
+                        gridId: gridId,
+                        weaponName: item.name,
                     });
                 },
             });
@@ -1099,11 +1120,24 @@ window.CNBT = (function () {
     function initEscKey() {
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
+                // If gunsmith is open, close it first (return to inventory)
+                if (window.Gunsmith && window.Gunsmith.isOpen()) {
+                    nuiCallback('closeGunsmith', {});
+                    return;
+                }
                 hideContextMenu();
                 hideSplitDialog();
                 nuiCallback('close', {});
             }
         });
+    }
+
+    // Reload player grid items (used by gunsmith after attach/detach)
+    function reloadPlayerItems(items) {
+        if (playerGrid) {
+            playerGrid.loadItems(items);
+            updateWeightDisplays();
+        }
     }
 
     // ============================================
@@ -1166,5 +1200,8 @@ window.CNBT = (function () {
         clearAllHighlights,
         updateWeightDisplays,
         assignHotbar,
+        getItemDef: function (name) { return itemDefs[name]; },
+        getItemDefs: function () { return itemDefs; },
+        reloadPlayerItems,
     };
 })();

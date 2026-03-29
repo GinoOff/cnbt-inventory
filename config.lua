@@ -83,3 +83,108 @@ Config.ItemEffects = {
     --     export = { resource = 'gcphone', export = 'togglePhone' },
     -- },
 }
+
+-- ============================================
+-- WEAPON ATTACHMENT SYSTEM (Gunsmith)
+-- ============================================
+
+-- Gunsmith camera settings
+Config.Gunsmith = {
+    camOffset = vector3(0.0, 0.0, 50.0), -- where to spawn weapon prop (high up, out of view)
+    camDist = 0.5,   -- camera distance from weapon
+    rotSpeed = 0.3,  -- mouse rotation sensitivity
+}
+
+-- Attachment slot types
+-- Each weapon defines which slots it supports + compatible attachment items per slot
+Config.WeaponAttachments = {
+    ['weapon_pistol'] = {
+        muzzle = { 'att_suppressor_pistol' },
+        flashlight = { 'att_flashlight' },
+        magazine = { 'att_extclip_pistol' },
+    },
+    ['weapon_smg'] = {
+        muzzle = { 'att_suppressor_smg' },
+        optic = { 'att_scope_small' },
+        flashlight = { 'att_flashlight' },
+        grip = { 'att_grip' },
+        magazine = { 'att_extclip_smg' },
+    },
+    ['weapon_rifle'] = {
+        muzzle = { 'att_suppressor_rifle' },
+        optic = { 'att_scope_small', 'att_scope_medium' },
+        flashlight = { 'att_flashlight' },
+        grip = { 'att_grip' },
+        magazine = { 'att_extclip_rifle' },
+        barrel = { 'att_barrel_rifle' },
+    },
+    ['weapon_shotgun'] = {
+        muzzle = { 'att_suppressor_shotgun' },
+        optic = { 'att_scope_small' },
+        flashlight = { 'att_flashlight' },
+    },
+    -- weapon_knife has no attachment slots
+}
+
+-- Maps attachment item name -> GTA weapon component hash
+-- These are the actual GTA V component hashes applied via GiveWeaponComponentToPed
+Config.AttachmentComponents = {
+    -- Suppressors
+    ['att_suppressor_pistol'] = {
+        ['weapon_pistol'] = 'COMPONENT_AT_PI_SUPP_02',
+    },
+    ['att_suppressor_smg'] = {
+        ['weapon_smg'] = 'COMPONENT_AT_AR_SUPP_02',
+    },
+    ['att_suppressor_rifle'] = {
+        ['weapon_rifle'] = 'COMPONENT_AT_AR_SUPP',
+    },
+    ['att_suppressor_shotgun'] = {
+        ['weapon_shotgun'] = 'COMPONENT_AT_SR_SUPP',
+    },
+    -- Flashlight
+    ['att_flashlight'] = {
+        ['weapon_pistol'] = 'COMPONENT_AT_PI_FLSH',
+        ['weapon_smg'] = 'COMPONENT_AT_AR_FLSH',
+        ['weapon_rifle'] = 'COMPONENT_AT_AR_FLSH',
+        ['weapon_shotgun'] = 'COMPONENT_AT_AR_FLSH',
+    },
+    -- Scopes
+    ['att_scope_small'] = {
+        ['weapon_smg'] = 'COMPONENT_AT_SCOPE_MACRO_02',
+        ['weapon_rifle'] = 'COMPONENT_AT_SCOPE_MEDIUM',
+        ['weapon_shotgun'] = 'COMPONENT_AT_SCOPE_SMALL',
+    },
+    ['att_scope_medium'] = {
+        ['weapon_rifle'] = 'COMPONENT_AT_SCOPE_LARGE',
+    },
+    -- Grip
+    ['att_grip'] = {
+        ['weapon_smg'] = 'COMPONENT_AT_AR_AFGRIP',
+        ['weapon_rifle'] = 'COMPONENT_AT_AR_AFGRIP',
+    },
+    -- Extended clips
+    ['att_extclip_pistol'] = {
+        ['weapon_pistol'] = 'COMPONENT_PISTOL_CLIP_02',
+    },
+    ['att_extclip_smg'] = {
+        ['weapon_smg'] = 'COMPONENT_SMG_CLIP_02',
+    },
+    ['att_extclip_rifle'] = {
+        ['weapon_rifle'] = 'COMPONENT_ASSAULTRIFLE_CLIP_02',
+    },
+    -- Barrel
+    ['att_barrel_rifle'] = {
+        ['weapon_rifle'] = 'COMPONENT_AT_AR_BARREL_02',
+    },
+}
+
+-- Slot display names and positions (for NUI layout)
+Config.AttachmentSlotLabels = {
+    muzzle     = 'Muzzle',
+    barrel     = 'Barrel',
+    optic      = 'Optic',
+    flashlight = 'Flashlight',
+    grip       = 'Grip',
+    magazine   = 'Magazine',
+}

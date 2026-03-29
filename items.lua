@@ -291,6 +291,165 @@ Items['ammo_12g'] = {
 }
 
 -- ============================================
+-- WEAPON ATTACHMENTS
+-- ============================================
+Items['att_suppressor_pistol'] = {
+    label       = 'Pistol Suppressor',
+    description = 'A threaded suppressor for pistols. Reduces noise and muzzle flash.',
+    weight      = 300,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_suppressor_pistol.png',
+    category    = 'attachment',
+}
+
+Items['att_suppressor_smg'] = {
+    label       = 'SMG Suppressor',
+    description = 'A compact suppressor designed for submachine guns.',
+    weight      = 350,
+    sizeX       = 2,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_suppressor_smg.png',
+    category    = 'attachment',
+}
+
+Items['att_suppressor_rifle'] = {
+    label       = 'Rifle Suppressor',
+    description = 'A full-size suppressor for assault rifles.',
+    weight      = 400,
+    sizeX       = 2,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_suppressor_rifle.png',
+    category    = 'attachment',
+}
+
+Items['att_suppressor_shotgun'] = {
+    label       = 'Shotgun Suppressor',
+    description = 'A heavy-duty suppressor for shotguns.',
+    weight      = 450,
+    sizeX       = 2,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_suppressor_shotgun.png',
+    category    = 'attachment',
+}
+
+Items['att_flashlight'] = {
+    label       = 'Tactical Flashlight',
+    description = 'A rail-mounted tactical flashlight for any weapon.',
+    weight      = 200,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_flashlight.png',
+    category    = 'attachment',
+}
+
+Items['att_scope_small'] = {
+    label       = 'Red Dot Sight',
+    description = 'A compact red dot sight for quick target acquisition.',
+    weight      = 250,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_scope_small.png',
+    category    = 'attachment',
+}
+
+Items['att_scope_medium'] = {
+    label       = 'ACOG Scope',
+    description = 'A medium-range magnified optic for rifles.',
+    weight      = 350,
+    sizeX       = 2,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_scope_medium.png',
+    category    = 'attachment',
+}
+
+Items['att_grip'] = {
+    label       = 'Vertical Grip',
+    description = 'A vertical foregrip for improved weapon control.',
+    weight      = 200,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_grip.png',
+    category    = 'attachment',
+}
+
+Items['att_extclip_pistol'] = {
+    label       = 'Extended Pistol Mag',
+    description = 'An extended magazine for pistols. Doubles ammo capacity.',
+    weight      = 200,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_extclip_pistol.png',
+    category    = 'attachment',
+}
+
+Items['att_extclip_smg'] = {
+    label       = 'Extended SMG Mag',
+    description = 'An extended magazine for submachine guns.',
+    weight      = 250,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_extclip_smg.png',
+    category    = 'attachment',
+}
+
+Items['att_extclip_rifle'] = {
+    label       = 'Extended Rifle Mag',
+    description = 'An extended magazine for assault rifles.',
+    weight      = 300,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_extclip_rifle.png',
+    category    = 'attachment',
+}
+
+Items['att_barrel_rifle'] = {
+    label       = 'Heavy Barrel',
+    description = 'A reinforced heavy barrel for improved accuracy and range.',
+    weight      = 500,
+    sizeX       = 2,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'att_barrel_rifle.png',
+    category    = 'attachment',
+}
+
+-- ============================================
 -- BACKPACKS
 -- ============================================
 Items['backpack_small'] = {
