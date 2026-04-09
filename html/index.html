@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CNBT Inventory</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- Three.js for 3D weapon model in gunsmith -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
     <div id="inventory-container" class="hidden">
@@ -20,26 +24,6 @@
         </div>
 
         <div id="inventory-panels">
-            <!-- Gunsmith Panel (opens alongside inventory) -->
-            <div id="gunsmith-panel" class="inv-panel hidden">
-                <div class="panel-header">
-                    <span class="panel-title" id="gunsmith-title">Weapon</span>
-                    <button id="gunsmith-back-btn" class="gs-back-btn" title="Back">&times;</button>
-                </div>
-                <!-- Weapon image display -->
-                <div id="gunsmith-weapon-display">
-                    <img id="gunsmith-weapon-img" src="" alt="" draggable="false">
-                </div>
-                <!-- Attachment slots (drag targets) -->
-                <div id="gunsmith-slots-header">
-                    <span>Attachments</span>
-                    <span class="gs-hint">Drag from inventory | Right-click to remove</span>
-                </div>
-                <div id="gunsmith-slot-list">
-                    <!-- Populated dynamically by gunsmith.js -->
-                </div>
-            </div>
-
             <!-- Player inventory panel -->
             <div id="player-panel" class="inv-panel">
                 <div class="panel-header">
@@ -116,6 +100,25 @@
 
     <!-- Grid highlight overlay cells (reused pool) -->
     <div id="highlight-pool"></div>
+
+    <!-- Gunsmith floating window (draggable, 3D weapon model) -->
+    <div id="gunsmith-window" class="hidden">
+        <div id="gunsmith-titlebar">
+            <span id="gunsmith-title">Weapon</span>
+            <button id="gunsmith-back-btn" class="gs-close-btn" title="Close">&times;</button>
+        </div>
+        <!-- 3D weapon model canvas -->
+        <div id="gunsmith-3d-viewport">
+            <!-- Three.js canvas injected here -->
+            <img id="gunsmith-weapon-fallback" src="" alt="" draggable="false">
+        </div>
+        <!-- Attachment slots -->
+        <div id="gunsmith-slots-header">
+            <span>Attachments</span>
+            <span class="gs-hint">Drag from inventory | Right-click to remove</span>
+        </div>
+        <div id="gunsmith-slot-list"></div>
+    </div>
 
     <script src="js/grid.js"></script>
     <script src="js/drag.js"></script>

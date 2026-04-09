@@ -37,6 +37,7 @@ files {
     'html/js/gunsmith.js',
     'html/js/app.js',
     'html/img/*.png',
+    'html/models/*.glb',
 }
 
 dependencies {

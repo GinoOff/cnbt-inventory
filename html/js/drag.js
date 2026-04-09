@@ -80,6 +80,14 @@ const DragSystem = (function () {
         mouseY = e.clientY;
         updateGhostPosition();
 
+        // Highlight gunsmith slots when dragging an attachment
+        if (window.Gunsmith && window.Gunsmith.isOpen() && window.Gunsmith.highlightAllSlots) {
+            const def = window.CNBT.itemDefs[item.name];
+            if (def && def.category === 'attachment') {
+                window.Gunsmith.highlightAllSlots(item.name);
+            }
+        }
+
         // Start render loop
         if (!rafId) {
             rafId = requestAnimationFrame(renderLoop);
