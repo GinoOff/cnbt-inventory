@@ -60,13 +60,9 @@ window.Gunsmith = (function () {
         attachments = msg.attachments || {};
         activeSlot = null;
 
-        // Build player attachment counts from items in inventory
-        // The server sends this via requestGunsmithData, but we also
-        // have local grid data we can use
-        buildPlayerAttachmentCounts();
-
         isOpen = true;
 
+        // Show overlay FIRST (before any code that might fail)
         const overlay = document.getElementById('gunsmith-overlay');
         overlay.classList.remove('hidden');
         overlay.classList.add('gunsmith-fade-in');
@@ -75,6 +71,9 @@ window.Gunsmith = (function () {
         const invContainer = document.getElementById('inventory-container');
         if (invContainer) invContainer.style.opacity = '0';
         if (invContainer) invContainer.style.pointerEvents = 'none';
+
+        // Build player attachment counts (safe - won't crash if grids missing)
+        buildPlayerAttachmentCounts();
 
         renderSlots();
         renderWeaponTitle();
@@ -112,20 +111,23 @@ window.Gunsmith = (function () {
 
     function buildPlayerAttachmentCounts() {
         playerAttachments = {};
-        // Read from CNBT's grid data if available
-        if (window.CNBT && typeof window.CNBT.getItemDefs === 'function') {
-            const grids = ['player', 'backpack'];
-            for (const gid of grids) {
-                const grid = window.CNBT.getGrid(gid);
-                if (!grid) continue;
-                const items = grid.getAllItems();
-                for (const item of items) {
-                    const def = window.CNBT.getItemDef(item.name);
-                    if (def && def.category === 'attachment') {
-                        playerAttachments[item.name] = (playerAttachments[item.name] || 0) + (item.count || 1);
+        try {
+            if (window.CNBT && window.CNBT.getGrid) {
+                var grids = ['player', 'backpack'];
+                for (var g = 0; g < grids.length; g++) {
+                    var grid = window.CNBT.getGrid(grids[g]);
+                    if (!grid || !grid.items) continue;
+                    for (var i = 0; i < grid.items.length; i++) {
+                        var item = grid.items[i];
+                        var def = window.CNBT.getItemDef(item.name);
+                        if (def && def.category === 'attachment') {
+                            playerAttachments[item.name] = (playerAttachments[item.name] || 0) + (item.count || 1);
+                        }
                     }
                 }
             }
+        } catch (e) {
+            // Silently fail - attachment counts will be empty but UI still works
         }
     }
 

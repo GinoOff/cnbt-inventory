@@ -11,8 +11,8 @@ local gunsmithRotY = 0.0
 local gunsmithRotZ = 0.0
 local gunsmithDragging = false
 
--- Spawn position for weapon object (high up, invisible to world)
-local GUNSMITH_POS = vector3(0.0, 0.0, 100.0)
+-- Spawn position far underground to avoid any world geometry
+local GUNSMITH_POS = vector3(0.0, 0.0, -50.0)
 
 -- ============================================
 -- OPEN GUNSMITH
@@ -37,9 +37,7 @@ function OpenGunsmith(weaponName, itemIndex, gridId, attachments)
 
     -- Request weapon model
     local weaponHash = GetHashKey(def.weaponHash)
-    local modelHash = weaponHash
 
-    -- Create weapon object
     RequestWeaponAsset(weaponHash, 31, 0)
     local timeout = 0
     while not HasWeaponAssetLoaded(weaponHash) and timeout < 100 do
@@ -47,8 +45,7 @@ function OpenGunsmith(weaponName, itemIndex, gridId, attachments)
         timeout = timeout + 1
     end
 
-    -- Use CreateWeaponObject to get proper weapon model
-    local ped = PlayerPedId()
+    -- Create weapon object underground where nothing is visible
     gunsmithWeaponObj = CreateWeaponObject(weaponHash, 1, GUNSMITH_POS.x, GUNSMITH_POS.y, GUNSMITH_POS.z, true, 1.0, 0)
 
     if not DoesEntityExist(gunsmithWeaponObj) then
@@ -59,6 +56,7 @@ function OpenGunsmith(weaponName, itemIndex, gridId, attachments)
 
     FreezeEntityPosition(gunsmithWeaponObj, true)
     SetEntityCollision(gunsmithWeaponObj, false, false)
+    SetEntityVisible(gunsmithWeaponObj, true, false)
 
     -- Apply existing attachments as components on the object
     if attachments then
@@ -71,14 +69,30 @@ function OpenGunsmith(weaponName, itemIndex, gridId, attachments)
         end
     end
 
-    -- Create camera
-    local camPos = vector3(GUNSMITH_POS.x, GUNSMITH_POS.y - Config.Gunsmith.camDist, GUNSMITH_POS.z)
+    -- Create camera with proper distance based on weapon size
+    local camDist = Config.Gunsmith.camDist
+    -- Bigger weapons need more distance
+    if def.sizeX >= 4 then
+        camDist = camDist * 2.5
+    elseif def.sizeX >= 3 then
+        camDist = camDist * 1.8
+    end
+
+    local camPos = vector3(GUNSMITH_POS.x, GUNSMITH_POS.y - camDist, GUNSMITH_POS.z)
     gunsmithCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
     SetCamCoord(gunsmithCam, camPos.x, camPos.y, camPos.z)
     PointCamAtCoord(gunsmithCam, GUNSMITH_POS.x, GUNSMITH_POS.y, GUNSMITH_POS.z)
     SetCamFov(gunsmithCam, 30.0)
     SetCamActive(gunsmithCam, true)
     RenderScriptCams(true, true, 500, true, false)
+
+    -- Dark atmosphere: timecycle modifier gives us a dark background
+    SetTimecycleModifier('hud_def_blur')
+    SetTimecycleModifierStrength(1.0)
+
+    -- Hide HUD and radar
+    DisplayHud(false)
+    DisplayRadar(false)
 
     -- Build slot data for NUI
     local slotData = {}
@@ -120,15 +134,18 @@ function OpenGunsmith(weaponName, itemIndex, gridId, attachments)
         attachments = attachments or {},
     })
 
-    -- Rotation loop
+    -- Control blocking loop while gunsmith is open
     CreateThread(function()
         while gunsmithOpen do
             Wait(0)
-            -- Keep disabling controls while gunsmith is open
-            DisableControlAction(0, 1, true)
-            DisableControlAction(0, 2, true)
-            DisableControlAction(0, 24, true)
-            DisableControlAction(0, 25, true)
+            DisableControlAction(0, 1, true)   -- Mouse look LR
+            DisableControlAction(0, 2, true)   -- Mouse look UD
+            DisableControlAction(0, 24, true)  -- Attack
+            DisableControlAction(0, 25, true)  -- Aim
+            DisableControlAction(0, 44, true)  -- Cover
+            DisableControlAction(0, 37, true)  -- Weapon wheel
+            -- Hide HUD every frame
+            HideHudAndRadarThisFrame()
         end
     end)
 end
@@ -153,6 +170,11 @@ function CloseGunsmith()
         DeleteObject(gunsmithWeaponObj)
         gunsmithWeaponObj = nil
     end
+
+    -- Restore timecycle and HUD
+    ClearTimecycleModifier()
+    DisplayHud(true)
+    DisplayRadar(true)
 
     gunsmithWeaponName = nil
     gunsmithDragging = false
@@ -308,4 +330,8 @@ AddEventHandler('onResourceStop', function(resource)
     if gunsmithOpen then
         CloseGunsmith()
     end
+    -- Safety: always restore HUD/timecycle
+    ClearTimecycleModifier()
+    DisplayHud(true)
+    DisplayRadar(true)
 end)
