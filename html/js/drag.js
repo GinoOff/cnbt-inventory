@@ -252,11 +252,14 @@ const DragSystem = (function () {
     function updateHighlights() {
         window.CNBT.clearAllHighlights();
 
-        // Gunsmith slot highlighting during drag
+        // Gunsmith slot hover highlight during drag (green/red base glow is set once at drag start)
         if (window.Gunsmith && window.Gunsmith.isOpen()) {
-            window.Gunsmith.clearSlotHighlights();
             const def = window.CNBT.itemDefs[dragItem.item.name];
             if (def && def.category === 'attachment') {
+                // Remove previous hover emphasis
+                var prevHover = document.querySelector('.gs-slot-hover');
+                if (prevHover) prevHover.classList.remove('gs-slot-hover');
+
                 const gsResult = window.Gunsmith.getHoveredSlot(mouseX, mouseY, dragItem.item.name);
                 if (gsResult && gsResult.element) {
                     window.Gunsmith.highlightSlot(gsResult.element, gsResult.compatible);

@@ -21,69 +21,6 @@ local DISPLAY_POS = vector3(0.0, 0.0, -50.0)
 -- WEAPON DISPLAY (in-game 3D model)
 -- ============================================
 
-local function setupWeaponDisplay(weaponName)
-    local def = Items[weaponName]
-    if not def or not def.weaponHash then return end
-
-    local weapHash = GetHashKey(def.weaponHash)
-
-    -- Request the weapon model
-    RequestWeaponAsset(weapHash, 31, 0)
-    local timeout = 0
-    while not HasWeaponAssetLoaded(weapHash) and timeout < 50 do
-        Wait(100)
-        timeout = timeout + 1
-    end
-    if not HasWeaponAssetLoaded(weapHash) then return end
-
-    -- Also request as regular model for CreateObject
-    RequestModel(weapHash)
-    timeout = 0
-    while not HasModelLoaded(weapHash) and timeout < 50 do
-        Wait(100)
-        timeout = timeout + 1
-    end
-    if not HasModelLoaded(weapHash) then return end
-
-    -- Create the weapon object
-    gunsmithObject = CreateObject(weapHash, DISPLAY_POS.x, DISPLAY_POS.y, DISPLAY_POS.z, false, false, false)
-    SetEntityCollision(gunsmithObject, false, false)
-    FreezeEntityPosition(gunsmithObject, true)
-    SetEntityVisible(gunsmithObject, true, false)
-    SetEntityAlpha(gunsmithObject, 255, false)
-
-    SetModelAsNoLongerNeeded(weapHash)
-
-    -- Camera setup - position slightly in front and above
-    gunsmithCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
-    SetCamCoord(gunsmithCam, DISPLAY_POS.x, DISPLAY_POS.y - 0.35, DISPLAY_POS.z + 0.05)
-    PointCamAtEntity(gunsmithCam, gunsmithObject, 0.0, 0.0, 0.0, true)
-    SetCamFov(gunsmithCam, 35.0)
-    SetCamActive(gunsmithCam, true)
-    RenderScriptCams(true, true, 300, true, true)
-
-    -- Apply existing attachments to the display object
-    if gunsmithWeaponName then
-        local currentAtts = {} -- will be applied via server data
-    end
-
-    -- Start auto-rotate
-    gunsmithRotating = true
-    gunsmithHeading = 0.0
-    Citizen.CreateThread(function()
-        while gunsmithRotating do
-            gunsmithHeading = gunsmithHeading + 0.3
-            if gunsmithHeading >= 360.0 then
-                gunsmithHeading = gunsmithHeading - 360.0
-            end
-            if gunsmithObject and DoesEntityExist(gunsmithObject) then
-                SetEntityHeading(gunsmithObject, gunsmithHeading)
-            end
-            Wait(16) -- ~60fps
-        end
-    end)
-end
-
 local function cleanupWeaponDisplay()
     gunsmithRotating = false
 
@@ -98,6 +35,81 @@ local function cleanupWeaponDisplay()
         DeleteEntity(gunsmithObject)
         gunsmithObject = nil
     end
+end
+
+local function setupWeaponDisplay(weaponName)
+    cleanupWeaponDisplay()
+
+    local def = Items[weaponName]
+    if not def or not def.weaponHash then return end
+
+    local weapHash = GetHashKey(def.weaponHash)
+
+    -- Request the weapon asset
+    RequestWeaponAsset(weapHash, 31, 0)
+    local timeout = 0
+    while not HasWeaponAssetLoaded(weapHash) and timeout < 50 do
+        Wait(100)
+        timeout = timeout + 1
+    end
+    if not HasWeaponAssetLoaded(weapHash) then return end
+
+    -- Create the weapon as an object using CreateWeaponObject
+    -- Parameters: weaponHash, ammoCount, x, y, z, showWorldModel, scale, p7
+    gunsmithObject = CreateWeaponObject(weapHash, 1, DISPLAY_POS.x, DISPLAY_POS.y, DISPLAY_POS.z, true, 1.0, 0)
+
+    if not gunsmithObject or gunsmithObject == 0 then
+        -- Fallback: try CreateObject with model request
+        RequestModel(weapHash)
+        timeout = 0
+        while not HasModelLoaded(weapHash) and timeout < 50 do
+            Wait(100)
+            timeout = timeout + 1
+        end
+        if HasModelLoaded(weapHash) then
+            gunsmithObject = CreateObject(weapHash, DISPLAY_POS.x, DISPLAY_POS.y, DISPLAY_POS.z, false, false, false)
+            SetModelAsNoLongerNeeded(weapHash)
+        end
+    end
+
+    if not gunsmithObject or gunsmithObject == 0 or not DoesEntityExist(gunsmithObject) then
+        return
+    end
+
+    SetEntityCollision(gunsmithObject, false, false)
+    FreezeEntityPosition(gunsmithObject, true)
+    SetEntityVisible(gunsmithObject, true, false)
+
+    -- Camera setup - position in front of weapon, looking at it
+    gunsmithCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    SetCamCoord(gunsmithCam, DISPLAY_POS.x, DISPLAY_POS.y - 0.40, DISPLAY_POS.z + 0.03)
+    PointCamAtEntity(gunsmithCam, gunsmithObject, 0.0, 0.0, 0.0, true)
+    SetCamFov(gunsmithCam, 30.0)
+    SetCamActive(gunsmithCam, true)
+    RenderScriptCams(true, true, 500, true, true)
+
+    -- Start auto-rotate + lighting thread
+    gunsmithRotating = true
+    gunsmithHeading = 0.0
+    Citizen.CreateThread(function()
+        while gunsmithRotating do
+            gunsmithHeading = gunsmithHeading + 0.3
+            if gunsmithHeading >= 360.0 then
+                gunsmithHeading = gunsmithHeading - 360.0
+            end
+            if gunsmithObject and DoesEntityExist(gunsmithObject) then
+                SetEntityHeading(gunsmithObject, gunsmithHeading)
+            end
+
+            -- Draw lights around the weapon (underground has no ambient light)
+            local px, py, pz = DISPLAY_POS.x, DISPLAY_POS.y, DISPLAY_POS.z
+            DrawLightWithRange(px, py - 0.3, pz + 0.3, 255, 255, 255, 3.0, 1.0)
+            DrawLightWithRange(px + 0.3, py + 0.2, pz + 0.2, 200, 220, 255, 2.0, 0.6)
+            DrawLightWithRange(px - 0.3, py + 0.2, pz - 0.1, 180, 200, 255, 2.0, 0.4)
+
+            Wait(0) -- every frame for light rendering
+        end
+    end)
 end
 
 -- ============================================

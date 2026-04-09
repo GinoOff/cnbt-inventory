@@ -631,7 +631,7 @@ body {
     top: 0;
     left: 0;
     pointer-events: none;
-    z-index: 1000;
+    z-index: 1500;
     opacity: 0.85;
     border-radius: 4px;
     background: rgba(50, 50, 50, 0.9);
