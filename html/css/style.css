@@ -691,363 +691,175 @@ body {
 }
 
 /* ============================================
-   GUNSMITH - CoD MW3 Style Weapon Customization
+   GUNSMITH PANEL - Weapon Attachment System
    ============================================ */
 
-#gunsmith-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 9999;
-    background: radial-gradient(ellipse at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.75) 70%, rgba(0,0,0,0.92) 100%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+#gunsmith-panel {
+    width: 280px;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
-#gunsmith-overlay.hidden {
-    display: none;
-}
-
-#gunsmith-overlay.gunsmith-fade-in {
-    animation: gunsmithFadeIn 0.3s ease-out;
-}
-
-@keyframes gunsmithFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-/* Close button */
-#gunsmith-close {
-    position: absolute;
-    top: 20px;
-    right: 30px;
+/* Back/close button in panel header */
+.gs-back-btn {
     background: none;
-    border: 1px solid rgba(255,255,255,0.2);
-    color: var(--text-primary);
-    font-size: 28px;
-    width: 44px;
-    height: 44px;
+    border: 1px solid rgba(80,80,80,0.4);
+    color: var(--text-secondary);
+    font-size: 18px;
+    width: 28px;
+    height: 28px;
     cursor: pointer;
     border-radius: 4px;
     transition: all var(--transition-fast);
-    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
+    padding: 0;
 }
 
-#gunsmith-close:hover {
-    background: rgba(255,74,74,0.3);
+.gs-back-btn:hover {
+    background: rgba(255,74,74,0.2);
     border-color: var(--danger);
     color: var(--danger);
 }
 
-/* Header */
-#gunsmith-header {
-    position: absolute;
-    top: 30px;
-    left: 40px;
-    z-index: 5;
-}
-
-#gunsmith-weapon-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #fff;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin: 0;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
-}
-
-#gunsmith-subtitle {
-    font-size: 13px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    margin-top: 4px;
-    display: block;
-}
-
-/* Viewport - transparent area where game renders the weapon */
-#gunsmith-viewport {
-    width: 50vw;
-    height: 55vh;
-    cursor: grab;
-    position: relative;
-    z-index: 1;
-    /* The game renders behind this transparent area */
-}
-
-#gunsmith-viewport:active {
-    cursor: grabbing;
-}
-
-/* Slot containers */
-#gunsmith-slots {
-    position: absolute;
-    top: 0;
-    left: 0;
+/* Weapon image display */
+#gunsmith-weapon-display {
     width: 100%;
-    height: 100%;
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 10, 0.6);
+    border: 1px solid rgba(60, 60, 60, 0.4);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+#gunsmith-weapon-img {
+    max-width: 90%;
+    max-height: 160px;
+    object-fit: contain;
+    filter: brightness(0.95) drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+}
+
+/* Slots header */
+#gunsmith-slots-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    pointer-events: none;
-    z-index: 3;
-    padding: 0 30px;
+    align-items: baseline;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(60,60,60,0.4);
 }
 
-.gunsmith-slot-column {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    pointer-events: auto;
-}
-
-.gunsmith-slot-column.gunsmith-left {
-    align-items: flex-start;
-    margin-left: 40px;
-}
-
-.gunsmith-slot-column.gunsmith-right {
-    align-items: flex-end;
-    margin-right: 40px;
-}
-
-/* Individual slot */
-.gunsmith-slot {
-    background: rgba(20, 20, 20, 0.8);
-    border: 1px solid rgba(80, 80, 80, 0.5);
-    border-left: 3px solid rgba(80, 80, 80, 0.5);
-    padding: 12px 20px;
-    min-width: 200px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    position: relative;
-}
-
-.gunsmith-right .gunsmith-slot {
-    border-left: 1px solid rgba(80, 80, 80, 0.5);
-    border-right: 3px solid rgba(80, 80, 80, 0.5);
-    text-align: right;
-}
-
-.gunsmith-slot:hover {
-    background: rgba(30, 30, 30, 0.9);
-    border-color: var(--accent);
-}
-
-.gunsmith-slot-active {
-    background: rgba(30, 40, 60, 0.9) !important;
-    border-color: var(--accent) !important;
-    border-left-color: var(--accent) !important;
-}
-
-.gunsmith-right .gunsmith-slot-active {
-    border-right-color: var(--accent) !important;
-}
-
-.gunsmith-slot-equipped {
-    border-left-color: var(--success) !important;
-}
-
-.gunsmith-right .gunsmith-slot-equipped {
-    border-left-color: rgba(80, 80, 80, 0.5) !important;
-    border-right-color: var(--success) !important;
-}
-
-.gunsmith-slot-label {
-    font-size: 11px;
+#gunsmith-slots-header span:first-child {
+    font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     color: var(--text-secondary);
-    margin-bottom: 3px;
-}
-
-.gunsmith-slot-value {
-    font-size: 14px;
-    color: #fff;
-    font-weight: 500;
-}
-
-.gunsmith-slot-empty {
-    color: var(--text-dim);
-    font-style: italic;
-    font-weight: 400;
-}
-
-/* Attachment Picker (bottom panel) */
-#gunsmith-picker {
-    position: absolute;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(15, 15, 15, 0.95);
-    border: 1px solid rgba(80, 80, 80, 0.5);
-    border-radius: 6px;
-    min-width: 500px;
-    max-width: 700px;
-    max-height: 260px;
-    overflow-y: auto;
-    z-index: 10;
-    backdrop-filter: blur(10px);
-    animation: pickerSlideUp 0.2s ease-out;
-}
-
-#gunsmith-picker.hidden {
-    display: none;
-}
-
-@keyframes pickerSlideUp {
-    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-    to { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-
-#gunsmith-picker-header {
-    padding: 12px 18px;
-    border-bottom: 1px solid rgba(80, 80, 80, 0.4);
-}
-
-#gunsmith-picker-title {
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--accent);
-    margin: 0;
     font-weight: 600;
 }
 
-#gunsmith-picker-list {
-    padding: 6px;
+.gs-hint {
+    font-size: 9px;
+    color: var(--text-dim);
 }
 
-/* Picker item */
-.gunsmith-picker-item {
+/* Slot list */
+#gunsmith-slot-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+/* Individual slot (drop target) */
+.gs-slot {
+    background: rgba(35, 35, 35, 0.8);
+    border: 2px solid rgba(70, 70, 70, 0.5);
+    border-radius: 6px;
+    padding: 8px;
+    min-height: 70px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 14px;
-    padding: 10px 14px;
+    justify-content: center;
+    gap: 4px;
+    cursor: default;
+    transition: all 0.15s ease;
+    position: relative;
+}
+
+.gs-slot-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-align: center;
+}
+
+.gs-slot-empty-icon {
+    font-size: 22px;
+    color: rgba(80, 80, 80, 0.6);
+    font-weight: 300;
+    line-height: 1;
+}
+
+/* Filled slot */
+.gs-slot-filled {
+    border-color: var(--accent);
+    background: rgba(30, 40, 55, 0.7);
     cursor: pointer;
-    border-radius: 4px;
-    transition: background var(--transition-fast);
 }
 
-.gunsmith-picker-item:hover {
-    background: rgba(74, 158, 255, 0.1);
+.gs-slot-filled:hover {
+    border-color: var(--danger);
+    background: rgba(50, 25, 25, 0.7);
 }
 
-.gunsmith-picker-item.gunsmith-picker-unavailable {
-    opacity: 0.35;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-.gunsmith-picker-item.gunsmith-picker-equipped {
-    background: rgba(74, 255, 126, 0.08);
-    border-left: 3px solid var(--success);
-}
-
-.gunsmith-picker-item.gunsmith-picker-remove {
-    border-left: 3px solid var(--danger);
-    margin-bottom: 4px;
-}
-
-.gunsmith-picker-item.gunsmith-picker-remove:hover {
-    background: rgba(255, 74, 74, 0.15);
-}
-
-.gunsmith-picker-img {
-    width: 44px;
-    height: 44px;
+.gs-slot-img {
+    width: 32px;
+    height: 32px;
     object-fit: contain;
-    flex-shrink: 0;
     filter: brightness(0.9);
 }
 
-.gunsmith-picker-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.gunsmith-picker-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-}
-
-.gunsmith-picker-desc {
-    font-size: 11px;
-    color: var(--text-secondary);
-    margin-top: 2px;
+.gs-slot-att-name {
+    font-size: 9px;
+    color: #ccc;
+    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
 }
 
-.gunsmith-picker-count {
-    font-size: 11px;
-    color: var(--accent);
-    margin-top: 3px;
+/* DRAG HIGHLIGHT: compatible (green glow) */
+.gs-slot-compat {
+    border-color: var(--success) !important;
+    background: rgba(20, 60, 30, 0.7) !important;
+    box-shadow: 0 0 12px var(--success-glow), inset 0 0 8px var(--success-glow);
 }
 
-.gunsmith-picker-tag {
-    font-size: 10px;
-    color: var(--success);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 700;
-    margin-top: 3px;
+/* DRAG HIGHLIGHT: incompatible (red glow) */
+.gs-slot-incompat {
+    border-color: var(--danger) !important;
+    background: rgba(60, 20, 20, 0.7) !important;
+    box-shadow: 0 0 12px var(--danger-glow), inset 0 0 8px var(--danger-glow);
 }
 
-.gunsmith-picker-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--danger);
-}
-
-.gunsmith-picker-empty {
-    padding: 20px;
-    text-align: center;
-    color: var(--text-dim);
-    font-style: italic;
-    font-size: 13px;
-}
-
-/* Instructions bar */
-#gunsmith-instructions {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 30px;
-    z-index: 5;
-}
-
-#gunsmith-instructions span {
-    font-size: 11px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-/* Scrollbar for picker */
-#gunsmith-picker::-webkit-scrollbar {
+/* Scrollbar for gunsmith panel */
+#gunsmith-panel::-webkit-scrollbar {
     width: 4px;
 }
 
-#gunsmith-picker::-webkit-scrollbar-track {
+#gunsmith-panel::-webkit-scrollbar-track {
     background: transparent;
 }
 
-#gunsmith-picker::-webkit-scrollbar-thumb {
+#gunsmith-panel::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 2px;
 }

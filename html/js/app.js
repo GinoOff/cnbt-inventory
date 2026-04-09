@@ -158,6 +158,11 @@ window.CNBT = (function () {
     }
 
     function handleClose() {
+        // Close gunsmith panel if open
+        if (window.Gunsmith && window.Gunsmith.isOpen()) {
+            window.Gunsmith.close();
+        }
+
         const container = document.getElementById('inventory-container');
         // Play slide-out animation, then hide
         container.classList.remove('slide-in');

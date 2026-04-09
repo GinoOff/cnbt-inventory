@@ -20,6 +20,26 @@
         </div>
 
         <div id="inventory-panels">
+            <!-- Gunsmith Panel (opens alongside inventory) -->
+            <div id="gunsmith-panel" class="inv-panel hidden">
+                <div class="panel-header">
+                    <span class="panel-title" id="gunsmith-title">Weapon</span>
+                    <button id="gunsmith-back-btn" class="gs-back-btn" title="Back">&times;</button>
+                </div>
+                <!-- Weapon image display -->
+                <div id="gunsmith-weapon-display">
+                    <img id="gunsmith-weapon-img" src="" alt="" draggable="false">
+                </div>
+                <!-- Attachment slots (drag targets) -->
+                <div id="gunsmith-slots-header">
+                    <span>Attachments</span>
+                    <span class="gs-hint">Drag from inventory | Right-click to remove</span>
+                </div>
+                <div id="gunsmith-slot-list">
+                    <!-- Populated dynamically by gunsmith.js -->
+                </div>
+            </div>
+
             <!-- Player inventory panel -->
             <div id="player-panel" class="inv-panel">
                 <div class="panel-header">
@@ -96,43 +116,6 @@
 
     <!-- Grid highlight overlay cells (reused pool) -->
     <div id="highlight-pool"></div>
-
-    <!-- Gunsmith Overlay (CoD MW3 style) -->
-    <div id="gunsmith-overlay" class="hidden">
-        <!-- Close button -->
-        <button id="gunsmith-close" title="Close">&times;</button>
-
-        <!-- Weapon title -->
-        <div id="gunsmith-header">
-            <h2 id="gunsmith-weapon-title"></h2>
-            <span id="gunsmith-subtitle">Weapon Customization</span>
-        </div>
-
-        <!-- Slot containers (left and right of viewport) -->
-        <div id="gunsmith-slots">
-            <!-- Populated dynamically by gunsmith.js -->
-        </div>
-
-        <!-- Transparent viewport - game renders 3D weapon here -->
-        <div id="gunsmith-viewport"></div>
-
-        <!-- Attachment picker panel (bottom) -->
-        <div id="gunsmith-picker" class="hidden">
-            <div id="gunsmith-picker-header">
-                <h3 id="gunsmith-picker-title">Select Attachment</h3>
-            </div>
-            <div id="gunsmith-picker-list">
-                <!-- Populated dynamically -->
-            </div>
-        </div>
-
-        <!-- Instructions -->
-        <div id="gunsmith-instructions">
-            <span>Drag to rotate</span>
-            <span>Click a slot to manage attachments</span>
-            <span>ESC to close</span>
-        </div>
-    </div>
 
     <script src="js/grid.js"></script>
     <script src="js/drag.js"></script>

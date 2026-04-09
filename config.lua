@@ -88,13 +88,6 @@ Config.ItemEffects = {
 -- WEAPON ATTACHMENT SYSTEM (Gunsmith)
 -- ============================================
 
--- Gunsmith camera settings
-Config.Gunsmith = {
-    camOffset = vector3(0.0, 0.0, 50.0), -- where to spawn weapon prop (high up, out of view)
-    camDist = 0.5,   -- camera distance from weapon
-    rotSpeed = 0.3,  -- mouse rotation sensitivity
-}
-
 -- Attachment slot types
 -- Each weapon defines which slots it supports + compatible attachment items per slot
 Config.WeaponAttachments = {

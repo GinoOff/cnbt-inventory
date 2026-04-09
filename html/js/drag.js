@@ -106,6 +106,30 @@ const DragSystem = (function () {
         // Clear highlights on all grids
         window.CNBT.clearAllHighlights();
 
+        // Clear gunsmith slot highlights
+        if (window.Gunsmith && window.Gunsmith.clearSlotHighlights) {
+            window.Gunsmith.clearSlotHighlights();
+        }
+
+        // Check if dropped on a gunsmith attachment slot
+        if (window.Gunsmith && window.Gunsmith.isOpen()) {
+            const def = window.CNBT.itemDefs[dragItem.item.name];
+            if (def && def.category === 'attachment') {
+                const gsResult = window.Gunsmith.getHoveredSlot(e.clientX, e.clientY, dragItem.item.name);
+                if (gsResult && gsResult.compatible) {
+                    window.Gunsmith.handleSlotDrop(gsResult.slot, dragItem.item.name);
+                    finishDrag();
+                    return;
+                }
+                if (gsResult) {
+                    // Dropped on incompatible slot - revert
+                    revertDrag();
+                    finishDrag();
+                    return;
+                }
+            }
+        }
+
         // Determine drop target
         const dropResult = getDropTarget(e.clientX, e.clientY);
 
@@ -219,6 +243,18 @@ const DragSystem = (function () {
 
     function updateHighlights() {
         window.CNBT.clearAllHighlights();
+
+        // Gunsmith slot highlighting during drag
+        if (window.Gunsmith && window.Gunsmith.isOpen()) {
+            window.Gunsmith.clearSlotHighlights();
+            const def = window.CNBT.itemDefs[dragItem.item.name];
+            if (def && def.category === 'attachment') {
+                const gsResult = window.Gunsmith.getHoveredSlot(mouseX, mouseY, dragItem.item.name);
+                if (gsResult && gsResult.element) {
+                    window.Gunsmith.highlightSlot(gsResult.element, gsResult.compatible);
+                }
+            }
+        }
 
         const grids = window.CNBT.getAllGrids();
         hoverGrid = null;
