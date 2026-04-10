@@ -97,22 +97,24 @@
     <!-- Grid highlight overlay cells (reused pool) -->
     <div id="highlight-pool"></div>
 
-    <!-- Gunsmith dark backdrop: box-shadow creates dark mask everywhere except inside this div -->
-    <div id="gunsmith-backdrop" class="hidden"></div>
+    <!-- Gunsmith full-screen overlay (COD-style: blurred background ring + floating slot labels) -->
+    <div id="gunsmith-overlay" class="hidden">
+        <!-- Full-screen blur backdrop with a soft "hole" centered on the weapon -->
+        <div id="gunsmith-blur"></div>
 
-    <!-- Gunsmith floating window (draggable, 3D weapon model) -->
-    <div id="gunsmith-window" class="hidden">
-        <div id="gunsmith-titlebar">
-            <span id="gunsmith-title">Weapon</span>
+        <!-- Top-left title block -->
+        <div id="gunsmith-topbar">
+            <div id="gunsmith-title-block">
+                <span id="gunsmith-category">WEAPON</span>
+                <h1 id="gunsmith-title">WEAPON</h1>
+            </div>
             <button id="gunsmith-back-btn" class="gs-close-btn" title="Close">&times;</button>
         </div>
-        <!-- Transparent viewport: in-game weapon model renders behind this -->
+
+        <!-- Transparent viewport over the weapon area: captures mouse drag for rotation -->
         <div id="gunsmith-3d-viewport"></div>
-        <!-- Attachment slots -->
-        <div id="gunsmith-slots-header">
-            <span>Attachments</span>
-            <span class="gs-hint">Drag from inventory | Right-click to remove</span>
-        </div>
+
+        <!-- Floating attachment slot labels positioned absolute around the weapon -->
         <div id="gunsmith-slot-list"></div>
     </div>
 

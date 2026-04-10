@@ -109,20 +109,39 @@ local function setupWeaponDisplay(weaponName)
         NetworkSetEntityInvisibleToNetwork(gunsmithObject, true)
     end
 
-    -- Render thread: keep weapon in front of camera + lights
+    -- Lock the weapon to the camera orientation AT OPEN TIME so the player can't
+    -- swing it around by moving the mouse. The camera direction is captured once
+    -- and used for every frame until the gunsmith closes.
+    local lockedCamPos = GetFinalRenderedCamCoord()
+    local lockedCamRot = GetFinalRenderedCamRot(2)
+    local lockedForward = RotationToDirection(lockedCamRot)
+    local lockedTargetPos = lockedCamPos + lockedForward * DISPLAY_DISTANCE
+
+    -- Render thread: keep weapon locked in front of the stored camera pose + lights
     gunsmithRotating = true
     gunsmithHeading = 0.0
     gunsmithPitch = 0.0
     Citizen.CreateThread(function()
         while gunsmithRotating do
             if gunsmithObject and DoesEntityExist(gunsmithObject) then
-                -- Use final rendered camera for smoothness
-                local cPos = GetFinalRenderedCamCoord()
-                local cRot = GetFinalRenderedCamRot(2)
-                local forward = RotationToDirection(cRot)
-                local targetPos = cPos + forward * DISPLAY_DISTANCE
+                -- Disable player movement, shooting and camera input while gunsmith is open
+                DisableControlAction(0, 1,   true) -- LookLeftRight
+                DisableControlAction(0, 2,   true) -- LookUpDown
+                DisableControlAction(0, 24,  true) -- Attack
+                DisableControlAction(0, 25,  true) -- Aim
+                DisableControlAction(0, 30,  true) -- MoveLeftRight
+                DisableControlAction(0, 31,  true) -- MoveUpDown
+                DisableControlAction(0, 32,  true) -- MoveUp (W)
+                DisableControlAction(0, 33,  true) -- MoveDown (S)
+                DisableControlAction(0, 34,  true) -- MoveLeft (A)
+                DisableControlAction(0, 35,  true) -- MoveRight (D)
+                DisableControlAction(0, 44,  true) -- Cover
+                DisableControlAction(0, 140, true) -- MeleeAttackLight
+                DisableControlAction(0, 141, true) -- MeleeAttackHeavy
+                DisableControlAction(0, 142, true) -- MeleeAttackAlternate
+                DisableControlAction(0, 257, true) -- AttackAlternate
 
-                SetEntityCoordsNoOffset(gunsmithObject, targetPos.x, targetPos.y, targetPos.z, false, false, false)
+                SetEntityCoordsNoOffset(gunsmithObject, lockedTargetPos.x, lockedTargetPos.y, lockedTargetPos.z, false, false, false)
 
                 -- Auto-rotate when not manually dragging
                 if not gunsmithManualRotate then
@@ -132,13 +151,14 @@ local function setupWeaponDisplay(weaponName)
                     end
                 end
 
-                -- Rotation relative to camera: yaw = cam yaw + heading, pitch = gunsmithPitch
-                SetEntityRotation(gunsmithObject, gunsmithPitch, 0.0, cRot.z + gunsmithHeading, 2, true)
+                -- Rotation relative to the LOCKED camera pose so the weapon does not
+                -- swing with mouse movement.
+                SetEntityRotation(gunsmithObject, gunsmithPitch, 0.0, lockedCamRot.z + gunsmithHeading, 2, true)
 
                 -- Lights near the weapon to make it well-lit regardless of environment
-                DrawLightWithRange(targetPos.x, targetPos.y, targetPos.z + 0.2, 255, 255, 255, 2.0, 8.0)
-                DrawLightWithRange(targetPos.x - 0.2, targetPos.y, targetPos.z,      200, 220, 255, 1.5, 4.0)
-                DrawLightWithRange(targetPos.x + 0.2, targetPos.y, targetPos.z,      255, 220, 200, 1.5, 4.0)
+                DrawLightWithRange(lockedTargetPos.x, lockedTargetPos.y, lockedTargetPos.z + 0.2, 255, 255, 255, 2.0, 8.0)
+                DrawLightWithRange(lockedTargetPos.x - 0.2, lockedTargetPos.y, lockedTargetPos.z,      200, 220, 255, 1.5, 4.0)
+                DrawLightWithRange(lockedTargetPos.x + 0.2, lockedTargetPos.y, lockedTargetPos.z,      255, 220, 200, 1.5, 4.0)
             end
 
             Wait(0)
