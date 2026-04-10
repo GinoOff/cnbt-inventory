@@ -691,8 +691,16 @@ body {
 }
 
 /* ============================================
-   GUNSMITH - Full-screen COD-style overlay
+   GUNSMITH - Full-screen tactical overlay
    ============================================ */
+
+:root {
+    --gs-accent: #ff8c1a;
+    --gs-accent-dim: rgba(255, 140, 26, 0.55);
+    --gs-accent-glow: rgba(255, 140, 26, 0.35);
+    --gs-panel: rgba(8, 10, 14, 0.88);
+    --gs-line: rgba(255, 255, 255, 0.14);
+}
 
 #gunsmith-overlay {
     position: fixed;
@@ -700,43 +708,62 @@ body {
     z-index: 1200;
     pointer-events: none; /* children re-enable as needed */
     user-select: none;
-    font-family: inherit;
+    font-family: 'Rajdhani', 'Oswald', 'Bebas Neue', 'Roboto Condensed', 'Segoe UI', sans-serif;
 }
 
 #gunsmith-overlay.hidden {
     display: none;
 }
 
-/* Full-screen blurred frame: 4 rectangles around a central clear weapon area.
-   Using 4 rects instead of a masked single div because FiveM CEF does not
-   reliably render CSS `mask` combined with `backdrop-filter`. */
-.gs-blur {
-    position: absolute;
-    backdrop-filter: blur(14px) brightness(0.35) saturate(1.05);
-    -webkit-backdrop-filter: blur(14px) brightness(0.35) saturate(1.05);
-    background: rgba(0, 0, 0, 0.25);
-    pointer-events: none;
-}
-.gs-blur-top    { left: 0;   right: 0;  top: 0;    height: 18%; }
-.gs-blur-bottom { left: 0;   right: 0;  bottom: 0; height: 22%; }
-.gs-blur-left   { left: 0;   top: 18%;  bottom: 22%; width: 18%; }
-.gs-blur-right  { right: 0;  top: 18%;  bottom: 22%; width: 18%; }
-
-/* Radial vignette softening the transition between the clear center and the
-   blurred frame. Not a backdrop-filter — just a dark gradient overlay. */
+/* Smooth radial vignette - darkens the world progressively towards the edges
+   but leaves the center fully clear so the weapon is visible. No hard borders. */
 #gunsmith-vignette {
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 46% 50% at 50% 50%, transparent 52%, rgba(0, 0, 0, 0.75) 85%);
+    background:
+        radial-gradient(ellipse 55% 65% at 50% 50%,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0) 22%,
+            rgba(0, 0, 0, 0.55) 55%,
+            rgba(6, 8, 12, 0.92) 85%,
+            rgba(4, 5, 8, 0.98) 100%);
     pointer-events: none;
 }
+
+/* Subtle scan-line / grid pattern overlay for the tactical HUD feel */
+#gunsmith-vignette::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    opacity: 0.6;
+}
+
+/* Tactical corner brackets */
+.gs-corner {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border: 2px solid var(--gs-accent);
+    pointer-events: none;
+    opacity: 0.85;
+}
+.gs-corner-tl { top: 24px;    left: 24px;    border-right: none;  border-bottom: none; }
+.gs-corner-tr { top: 24px;    right: 24px;   border-left:  none;  border-bottom: none; }
+.gs-corner-bl { bottom: 24px; left: 24px;    border-right: none;  border-top:    none; }
+.gs-corner-br { bottom: 24px; right: 24px;   border-left:  none;  border-top:    none; }
 
 /* Top bar: weapon category + name on the left, close button on the right */
 #gunsmith-topbar {
     position: absolute;
-    top: 34px;
-    left: 52px;
-    right: 52px;
+    top: 52px;
+    left: 80px;
+    right: 80px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -747,54 +774,122 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
+    gap: 10px;
+    position: relative;
+}
+
+/* Accent stripe next to the category label */
+#gunsmith-title-block::before {
+    content: '';
+    position: absolute;
+    left: -18px;
+    top: 8px;
+    width: 4px;
+    height: 76%;
+    background: var(--gs-accent);
+    box-shadow: 0 0 12px var(--gs-accent-glow);
 }
 
 #gunsmith-category {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
     font-size: 11px;
-    padding: 4px 12px;
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.85);
-    letter-spacing: 3px;
+    padding: 5px 14px;
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--gs-accent);
+    letter-spacing: 4px;
     text-transform: uppercase;
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    border: 1px solid var(--gs-accent-dim);
     font-weight: 600;
 }
 
+#gunsmith-category::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--gs-accent);
+    box-shadow: 0 0 8px var(--gs-accent);
+}
+
 #gunsmith-title {
-    font-size: 64px;
-    font-weight: 800;
+    font-size: 78px;
+    font-weight: 700;
     color: #fff;
     margin: 0;
-    letter-spacing: 3px;
-    line-height: 0.95;
+    letter-spacing: 4px;
+    line-height: 0.9;
     text-transform: uppercase;
-    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.85);
+    text-shadow: 0 4px 28px rgba(0, 0, 0, 0.95), 0 0 40px rgba(0, 0, 0, 0.6);
+    font-stretch: condensed;
+}
+
+#gunsmith-subtitle {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-top: 2px;
 }
 
 /* Close button (top-right) */
 .gs-close-btn {
-    background: rgba(0, 0, 0, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--gs-accent-dim);
+    color: var(--gs-accent);
     font-size: 22px;
-    width: 42px;
-    height: 42px;
+    width: 46px;
+    height: 46px;
     cursor: pointer;
-    border-radius: 4px;
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
     padding: 0;
+    font-family: inherit;
 }
 
 .gs-close-btn:hover {
-    background: rgba(255, 74, 74, 0.3);
-    border-color: var(--danger);
-    color: var(--danger);
+    background: var(--gs-accent);
+    color: #000;
+    box-shadow: 0 0 16px var(--gs-accent-glow);
+}
+
+/* Bottom bar with control hints */
+#gunsmith-hints {
+    position: absolute;
+    bottom: 52px;
+    left: 80px;
+    right: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.55);
+    text-transform: uppercase;
+}
+
+.gs-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.gs-hint kbd {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    padding: 2px 7px;
+    font-size: 10px;
+    font-family: inherit;
+    color: var(--gs-accent);
+    font-weight: 600;
 }
 
 /* Central viewport: transparent region that captures mouse drag for weapon rotation.
@@ -821,115 +916,162 @@ body {
     pointer-events: none;
 }
 
-/* Individual floating slot: circle "+" icon + label pill */
+/* Individual floating slot: angular icon + label. Tactical HUD look. */
 .gs-slot {
     position: absolute;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     pointer-events: auto;
     cursor: default;
     transform: translate(-50%, -50%);
-    transition: transform 0.15s ease, filter 0.15s ease;
+    transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+/* Thin horizontal bracket line between icon and label (tactical HUD connector) */
+.gs-slot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 46px;
+    width: 14px;
+    height: 1px;
+    background: var(--gs-accent);
+    opacity: 0.6;
+    pointer-events: none;
 }
 
 .gs-slot-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.75);
-    background: rgba(0, 0, 0, 0.55);
+    width: 46px;
+    height: 46px;
+    border: 1.5px solid rgba(255, 255, 255, 0.72);
+    background: rgba(0, 0, 0, 0.72);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
     flex-shrink: 0;
     overflow: hidden;
-    transition: all 0.15s ease;
+    transition: all 0.18s ease;
+    clip-path: polygon(
+        12% 0%, 88% 0%, 100% 12%, 100% 88%,
+        88% 100%, 12% 100%, 0% 88%, 0% 12%
+    );
+    position: relative;
+}
+
+.gs-slot-icon::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    clip-path: polygon(
+        12% 0%, 88% 0%, 100% 12%, 100% 88%,
+        88% 100%, 12% 100%, 0% 88%, 0% 12%
+    );
+    pointer-events: none;
 }
 
 .gs-slot-icon .gs-slot-plus {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 300;
     line-height: 1;
     color: #fff;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
 }
 
 .gs-slot-icon img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    padding: 4px;
-    filter: brightness(1.1);
+    padding: 6px;
+    filter: brightness(1.15) drop-shadow(0 0 4px rgba(255, 140, 26, 0.4));
 }
 
 .gs-slot-label {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: #fff;
-    background: rgba(0, 0, 0, 0.55);
-    padding: 6px 14px;
-    border-radius: 3px;
-    letter-spacing: 1px;
+    background: rgba(0, 0, 0, 0.75);
+    padding: 7px 14px 7px 16px;
+    letter-spacing: 2px;
     text-transform: uppercase;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
     white-space: nowrap;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-left: 2px solid var(--gs-accent-dim);
+    position: relative;
 }
 
-/* Slot with an attachment equipped - highlight label in cyan */
+/* Slot with an attachment equipped: accent-orange border/label */
 .gs-slot-filled .gs-slot-label {
-    color: #7dd8ff;
-    border-color: rgba(125, 216, 255, 0.6);
+    color: var(--gs-accent);
+    border-left-color: var(--gs-accent);
+    background: rgba(0, 0, 0, 0.85);
 }
 
 .gs-slot-filled .gs-slot-icon {
-    border-color: #7dd8ff;
-    box-shadow: 0 0 10px rgba(125, 216, 255, 0.35);
+    border-color: var(--gs-accent);
+    background: rgba(20, 10, 0, 0.85);
+    box-shadow: 0 0 14px var(--gs-accent-glow);
+}
+
+.gs-slot-filled::after {
+    background: var(--gs-accent);
+    opacity: 1;
+    box-shadow: 0 0 8px var(--gs-accent-glow);
 }
 
 .gs-slot-filled:hover .gs-slot-label {
     color: var(--danger);
-    border-color: var(--danger);
+    border-left-color: var(--danger);
 }
 
 .gs-slot-filled:hover .gs-slot-icon {
     border-color: var(--danger);
-    box-shadow: 0 0 10px rgba(255, 74, 74, 0.5);
+    box-shadow: 0 0 14px rgba(255, 74, 74, 0.5);
 }
-
-/* Slot positioning keys (overridden per-slot with top/left in JS) */
 
 /* DRAG HIGHLIGHT: compatible (green glow) */
 .gs-slot-compat .gs-slot-icon {
     border-color: var(--success) !important;
     background: rgba(20, 60, 30, 0.85) !important;
-    box-shadow: 0 0 16px var(--success-glow), inset 0 0 8px var(--success-glow) !important;
+    box-shadow: 0 0 18px var(--success-glow), inset 0 0 10px var(--success-glow) !important;
 }
 
 .gs-slot-compat .gs-slot-label {
     color: var(--success) !important;
-    border-color: var(--success) !important;
-    background: rgba(10, 40, 20, 0.7) !important;
+    border-left-color: var(--success) !important;
+    background: rgba(10, 40, 20, 0.8) !important;
+}
+
+.gs-slot-compat::after {
+    background: var(--success) !important;
+    box-shadow: 0 0 8px var(--success-glow) !important;
+    opacity: 1 !important;
 }
 
 /* DRAG HIGHLIGHT: incompatible (red glow) */
 .gs-slot-incompat .gs-slot-icon {
     border-color: var(--danger) !important;
     background: rgba(60, 20, 20, 0.85) !important;
-    box-shadow: 0 0 16px var(--danger-glow), inset 0 0 8px var(--danger-glow) !important;
+    box-shadow: 0 0 18px var(--danger-glow), inset 0 0 10px var(--danger-glow) !important;
 }
 
 .gs-slot-incompat .gs-slot-label {
     color: var(--danger) !important;
-    border-color: var(--danger) !important;
-    background: rgba(40, 10, 10, 0.7) !important;
+    border-left-color: var(--danger) !important;
+    background: rgba(40, 10, 10, 0.8) !important;
+}
+
+.gs-slot-incompat::after {
+    background: var(--danger) !important;
+    opacity: 1 !important;
 }
 
 /* DRAG HIGHLIGHT: hover emphasis on specific slot */
 .gs-slot-hover {
-    transform: translate(-50%, -50%) scale(1.08);
-    filter: brightness(1.25);
+    transform: translate(-50%, -50%) scale(1.1);
+    filter: brightness(1.3);
 }
 
 /* Empty slot is clickable too (opens the popup menu of compatible items) */
@@ -937,28 +1079,46 @@ body {
     cursor: pointer;
 }
 .gs-slot:not(.gs-slot-filled):hover .gs-slot-icon {
-    border-color: #7dd8ff;
-    box-shadow: 0 0 10px rgba(125, 216, 255, 0.4);
+    border-color: var(--gs-accent);
+    background: rgba(25, 12, 0, 0.85);
+    box-shadow: 0 0 14px var(--gs-accent-glow);
 }
 .gs-slot:not(.gs-slot-filled):hover .gs-slot-label {
-    color: #7dd8ff;
-    border-color: rgba(125, 216, 255, 0.5);
+    color: var(--gs-accent);
+    border-left-color: var(--gs-accent);
+}
+.gs-slot:not(.gs-slot-filled):hover::after {
+    opacity: 1;
+    box-shadow: 0 0 6px var(--gs-accent-glow);
 }
 
 /* Popup menu: listing compatible attachments from the player inventory */
 #gunsmith-slot-menu {
     position: absolute;
-    min-width: 220px;
-    max-width: 280px;
-    max-height: 340px;
+    min-width: 240px;
+    max-width: 300px;
+    max-height: 360px;
     overflow-y: auto;
-    background: rgba(12, 14, 18, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 4px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8);
-    padding: 6px;
+    background: var(--gs-panel);
+    border: 1px solid var(--gs-accent-dim);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.9), 0 0 20px var(--gs-accent-glow);
+    padding: 8px;
     z-index: 1210;
     pointer-events: auto;
+    position: absolute;
+}
+
+#gunsmith-slot-menu::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg,
+        var(--gs-accent) 0%,
+        var(--gs-accent) 40%,
+        transparent 100%);
 }
 
 #gunsmith-slot-menu.hidden {
@@ -968,32 +1128,36 @@ body {
 .gs-menu-title {
     font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    color: rgba(255, 255, 255, 0.55);
-    padding: 4px 8px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    margin-bottom: 4px;
+    letter-spacing: 3px;
+    color: var(--gs-accent);
+    padding: 10px 8px 10px;
+    border-bottom: 1px solid rgba(255, 140, 26, 0.2);
+    margin-bottom: 6px;
+    font-weight: 700;
 }
 
 .gs-menu-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 8px;
-    border-radius: 3px;
+    gap: 12px;
+    padding: 8px 10px;
     cursor: pointer;
-    transition: background 0.1s ease;
+    transition: background 0.12s ease, transform 0.12s ease;
+    border-left: 2px solid transparent;
 }
 
 .gs-menu-item:hover {
-    background: rgba(125, 216, 255, 0.15);
+    background: rgba(255, 140, 26, 0.12);
+    border-left-color: var(--gs-accent);
+    transform: translateX(2px);
 }
 
 .gs-menu-item img {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     object-fit: contain;
     flex-shrink: 0;
+    filter: brightness(1.1);
 }
 
 .gs-menu-item-name {
@@ -1004,14 +1168,17 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 .gs-menu-empty {
-    padding: 16px 8px;
+    padding: 20px 10px;
     font-size: 11px;
     color: rgba(255, 255, 255, 0.5);
     text-align: center;
-    font-style: italic;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
 }
 
 /* Scrollbar for the menu */

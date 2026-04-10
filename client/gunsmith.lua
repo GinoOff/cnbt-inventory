@@ -17,8 +17,11 @@ local gunsmithPitch = 0.0
 local gunsmithWeaponName = nil
 local gunsmithManualRotate = false
 
--- Distance in front of gameplay camera (meters)
+-- Distance in front of gameplay camera (meters). Mutable - controlled by
+-- mouse-wheel zoom via the `gunsmithZoom` NUI callback.
 local DISPLAY_DISTANCE = 0.7
+local DISPLAY_DISTANCE_MIN = 0.35
+local DISPLAY_DISTANCE_MAX = 1.4
 
 -- ============================================
 -- HELPERS
@@ -110,12 +113,13 @@ local function setupWeaponDisplay(weaponName)
     end
 
     -- Lock the weapon to the camera orientation AT OPEN TIME so the player can't
-    -- swing it around by moving the mouse. The camera direction is captured once
-    -- and used for every frame until the gunsmith closes.
+    -- swing it around by moving the mouse. The camera pose is captured once and
+    -- reused every frame. Only the distance (zoom) is allowed to change.
     local lockedCamPos = GetFinalRenderedCamCoord()
     local lockedCamRot = GetFinalRenderedCamRot(2)
     local lockedForward = RotationToDirection(lockedCamRot)
-    local lockedTargetPos = lockedCamPos + lockedForward * DISPLAY_DISTANCE
+
+    DISPLAY_DISTANCE = 0.7
 
     -- Render thread: keep weapon locked in front of the stored camera pose + lights
     gunsmithRotating = true
@@ -141,7 +145,11 @@ local function setupWeaponDisplay(weaponName)
                 DisableControlAction(0, 142, true) -- MeleeAttackAlternate
                 DisableControlAction(0, 257, true) -- AttackAlternate
 
-                SetEntityCoordsNoOffset(gunsmithObject, lockedTargetPos.x, lockedTargetPos.y, lockedTargetPos.z, false, false, false)
+                -- Recompute target each frame so the zoom slider (DISPLAY_DISTANCE)
+                -- takes effect immediately.
+                local targetPos = lockedCamPos + lockedForward * DISPLAY_DISTANCE
+
+                SetEntityCoordsNoOffset(gunsmithObject, targetPos.x, targetPos.y, targetPos.z, false, false, false)
 
                 -- Auto-rotate when not manually dragging
                 if not gunsmithManualRotate then
@@ -156,9 +164,9 @@ local function setupWeaponDisplay(weaponName)
                 SetEntityRotation(gunsmithObject, gunsmithPitch, 0.0, lockedCamRot.z + gunsmithHeading, 2, true)
 
                 -- Lights near the weapon to make it well-lit regardless of environment
-                DrawLightWithRange(lockedTargetPos.x, lockedTargetPos.y, lockedTargetPos.z + 0.2, 255, 255, 255, 2.0, 8.0)
-                DrawLightWithRange(lockedTargetPos.x - 0.2, lockedTargetPos.y, lockedTargetPos.z,      200, 220, 255, 1.5, 4.0)
-                DrawLightWithRange(lockedTargetPos.x + 0.2, lockedTargetPos.y, lockedTargetPos.z,      255, 220, 200, 1.5, 4.0)
+                DrawLightWithRange(targetPos.x, targetPos.y, targetPos.z + 0.2, 255, 255, 255, 2.0, 8.0)
+                DrawLightWithRange(targetPos.x - 0.2, targetPos.y, targetPos.z,      200, 220, 255, 1.5, 4.0)
+                DrawLightWithRange(targetPos.x + 0.2, targetPos.y, targetPos.z,      255, 220, 200, 1.5, 4.0)
             end
 
             Wait(0)
@@ -299,6 +307,15 @@ end)
 
 RegisterNUICallback('gunsmithDragEnd', function(_, cb)
     gunsmithManualRotate = false
+    cb('ok')
+end)
+
+-- Mouse-wheel zoom: positive delta = zoom in (decrease distance)
+RegisterNUICallback('gunsmithZoom', function(data, cb)
+    local delta = tonumber(data.delta) or 0.0
+    DISPLAY_DISTANCE = DISPLAY_DISTANCE - delta * 0.08
+    if DISPLAY_DISTANCE < DISPLAY_DISTANCE_MIN then DISPLAY_DISTANCE = DISPLAY_DISTANCE_MIN end
+    if DISPLAY_DISTANCE > DISPLAY_DISTANCE_MAX then DISPLAY_DISTANCE = DISPLAY_DISTANCE_MAX end
     cb('ok')
 end)
 

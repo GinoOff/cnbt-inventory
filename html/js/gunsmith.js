@@ -448,6 +448,15 @@ window.Gunsmith = (function () {
 
         viewport.addEventListener('pointerup', endRotation);
         viewport.addEventListener('pointercancel', endRotation);
+
+        // Mouse-wheel zoom: positive deltaY = scroll down = zoom out
+        viewport.addEventListener('wheel', function (e) {
+            if (!isOpenState) return;
+            e.preventDefault();
+            // Normalize wheel delta to roughly +/- 1 per notch
+            var delta = e.deltaY > 0 ? -1 : 1;
+            nuiCallback('gunsmithZoom', { delta: delta });
+        }, { passive: false });
     }
 
     // ============================================
