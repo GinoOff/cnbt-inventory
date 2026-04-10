@@ -97,10 +97,15 @@
     <!-- Grid highlight overlay cells (reused pool) -->
     <div id="highlight-pool"></div>
 
-    <!-- Gunsmith full-screen overlay (COD-style: blurred background ring + floating slot labels) -->
+    <!-- Gunsmith full-screen overlay (COD-style: blurred frame around a clear weapon area) -->
     <div id="gunsmith-overlay" class="hidden">
-        <!-- Full-screen blur backdrop with a soft "hole" centered on the weapon -->
-        <div id="gunsmith-blur"></div>
+        <!-- 4 blur rectangles form a frame around the central clear weapon area -->
+        <div class="gs-blur gs-blur-top"></div>
+        <div class="gs-blur gs-blur-bottom"></div>
+        <div class="gs-blur gs-blur-left"></div>
+        <div class="gs-blur gs-blur-right"></div>
+        <!-- Soft radial vignette for extra contrast around the weapon -->
+        <div id="gunsmith-vignette"></div>
 
         <!-- Top-left title block -->
         <div id="gunsmith-topbar">
@@ -116,6 +121,9 @@
 
         <!-- Floating attachment slot labels positioned absolute around the weapon -->
         <div id="gunsmith-slot-list"></div>
+
+        <!-- Popup menu for click-to-attach (listing compatible items) -->
+        <div id="gunsmith-slot-menu" class="hidden"></div>
     </div>
 
     <script src="js/grid.js"></script>

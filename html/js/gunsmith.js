@@ -99,6 +99,7 @@ window.Gunsmith = (function () {
         overlay.classList.add('hidden');
 
         clearSlotHighlights();
+        closeSlotMenu();
     }
 
     function nuiCallback(name, data) {
@@ -170,7 +171,8 @@ window.Gunsmith = (function () {
             label.textContent = slotData.label || key;
             slotEl.appendChild(label);
 
-            // Right-click to remove attachment
+            // Right-click to remove attachment; left-click on empty slot opens
+            // the popup menu listing compatible attachments from the inventory.
             (function (slotKey, hasEquipped) {
                 if (hasEquipped) {
                     slotEl.addEventListener('contextmenu', function (e) {
@@ -178,11 +180,127 @@ window.Gunsmith = (function () {
                         e.stopPropagation();
                         detachFromSlot(slotKey);
                     });
+                } else {
+                    slotEl.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openSlotMenu(slotKey, slotEl);
+                    });
                 }
             })(key, !!equipped);
 
             container.appendChild(slotEl);
         }
+    }
+
+    // ============================================
+    // CLICK-TO-ATTACH POPUP MENU
+    // ============================================
+
+    /**
+     * Scan the player's own inventories (player grid + backpack) for items
+     * that are compatible with `slotKey` and return them as [{name, label, image}].
+     * External stash/vehicle inventories are intentionally excluded.
+     */
+    function findCompatibleItems(slotKey) {
+        var results = [];
+        var seen = {};
+        var slotData = slots[slotKey];
+        if (!slotData || !slotData.compatible) return results;
+
+        if (!window.CNBT || !window.CNBT.getGrid) return results;
+
+        var gridIds = ['player', 'backpack'];
+        for (var gi = 0; gi < gridIds.length; gi++) {
+            var grid = window.CNBT.getGrid(gridIds[gi]);
+            if (!grid || !grid.items) continue;
+            for (var i = 0; i < grid.items.length; i++) {
+                var it = grid.items[i];
+                if (!it || !it.name) continue;
+                if (seen[it.name]) continue;
+                if (slotData.compatible[it.name] !== true) continue;
+                seen[it.name] = true;
+                var def = window.CNBT.getItemDef(it.name);
+                results.push({
+                    name: it.name,
+                    label: def && def.label ? def.label : it.name,
+                    image: def && def.image ? def.image : null,
+                });
+            }
+        }
+        return results;
+    }
+
+    function openSlotMenu(slotKey, slotEl) {
+        var menu = document.getElementById('gunsmith-slot-menu');
+        if (!menu) return;
+
+        menu.innerHTML = '';
+
+        var title = document.createElement('div');
+        title.className = 'gs-menu-title';
+        var slotData = slots[slotKey];
+        title.textContent = (slotData && slotData.label ? slotData.label : slotKey) + ' attachments';
+        menu.appendChild(title);
+
+        var items = findCompatibleItems(slotKey);
+        if (items.length === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'gs-menu-empty';
+            empty.textContent = 'No compatible attachments in your inventory';
+            menu.appendChild(empty);
+        } else {
+            for (var i = 0; i < items.length; i++) {
+                var row = document.createElement('div');
+                row.className = 'gs-menu-item';
+
+                if (items[i].image) {
+                    var img = document.createElement('img');
+                    img.src = 'img/' + items[i].image;
+                    img.onerror = function () { this.style.display = 'none'; };
+                    row.appendChild(img);
+                }
+
+                var name = document.createElement('div');
+                name.className = 'gs-menu-item-name';
+                name.textContent = items[i].label;
+                row.appendChild(name);
+
+                (function (attName) {
+                    row.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSlotDrop(slotKey, attName);
+                        closeSlotMenu();
+                    });
+                })(items[i].name);
+
+                menu.appendChild(row);
+            }
+        }
+
+        // Position the menu next to the slot, clamped to the viewport
+        menu.classList.remove('hidden');
+        var slotRect = slotEl.getBoundingClientRect();
+        var menuRect = menu.getBoundingClientRect();
+        var pad = 10;
+        var left = slotRect.right + pad;
+        var top = slotRect.top;
+        if (left + menuRect.width > window.innerWidth - pad) {
+            left = slotRect.left - menuRect.width - pad;
+        }
+        if (left < pad) left = pad;
+        if (top + menuRect.height > window.innerHeight - pad) {
+            top = window.innerHeight - menuRect.height - pad;
+        }
+        if (top < pad) top = pad;
+        menu.style.left = left + 'px';
+        menu.style.top = top + 'px';
+    }
+
+    function closeSlotMenu() {
+        var menu = document.getElementById('gunsmith-slot-menu');
+        if (menu) menu.classList.add('hidden');
     }
 
     // ============================================
@@ -272,6 +390,7 @@ window.Gunsmith = (function () {
     function handleAttachSuccess(msg) {
         attachments = msg.updatedAttachments || {};
         renderSlots();
+        closeSlotMenu();
         if (msg.updatedItems && window.CNBT && window.CNBT.reloadPlayerItems) {
             window.CNBT.reloadPlayerItems(msg.updatedItems);
         }
@@ -280,6 +399,7 @@ window.Gunsmith = (function () {
     function handleDetachSuccess(msg) {
         attachments = msg.updatedAttachments || {};
         renderSlots();
+        closeSlotMenu();
         if (msg.updatedItems && window.CNBT && window.CNBT.reloadPlayerItems) {
             window.CNBT.reloadPlayerItems(msg.updatedItems);
         }
@@ -343,6 +463,16 @@ window.Gunsmith = (function () {
                 nuiCallback('closeGunsmith', {});
             });
         }
+
+        // Close the slot menu when clicking anywhere outside it / outside a slot
+        document.addEventListener('mousedown', function (e) {
+            if (!isOpenState) return;
+            var menu = document.getElementById('gunsmith-slot-menu');
+            if (!menu || menu.classList.contains('hidden')) return;
+            if (menu.contains(e.target)) return;
+            if (e.target.closest && e.target.closest('.gs-slot')) return;
+            closeSlotMenu();
+        });
     }
 
     if (document.readyState === 'loading') {
