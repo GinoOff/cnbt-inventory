@@ -697,7 +697,8 @@ body {
 #gunsmith-window {
     position: fixed;
     width: 520px;
-    background: rgba(18, 18, 22, 0.96);
+    /* no background - viewport must be truly transparent */
+    background: transparent;
     border: 1px solid rgba(70, 70, 70, 0.5);
     border-radius: 10px;
     box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7), 0 0 1px rgba(255,255,255,0.05);
@@ -707,6 +708,26 @@ body {
 }
 
 #gunsmith-window.hidden {
+    display: none;
+}
+
+/* Dark backdrop using box-shadow trick: the div itself is a transparent "hole"
+   positioned over the viewport, and the huge box-shadow fills the rest of the
+   screen with dark color. This masks the in-game weapon so it's only visible
+   inside the viewport. */
+#gunsmith-backdrop {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    background: transparent;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.88);
+    z-index: 1150;
+    pointer-events: none;
+}
+
+#gunsmith-backdrop.hidden {
     display: none;
 }
 
@@ -753,14 +774,19 @@ body {
     color: var(--danger);
 }
 
-/* 3D Viewport - transparent so the in-game weapon model (scripted camera) shows through */
+/* 3D Viewport - transparent so the in-game weapon model (positioned in front of
+   the gameplay camera) is visible through it. Mouse drag rotates the weapon. */
 #gunsmith-3d-viewport {
     width: 100%;
-    height: 220px;
+    height: 240px;
     background: transparent;
     position: relative;
     overflow: hidden;
-    border-bottom: 1px solid rgba(60, 60, 60, 0.3);
+    cursor: grab;
+}
+
+#gunsmith-3d-viewport.dragging {
+    cursor: grabbing;
 }
 
 /* Slots header */
@@ -770,6 +796,8 @@ body {
     align-items: baseline;
     margin: 0;
     padding: 8px 14px 6px;
+    background: rgba(18, 18, 22, 0.96);
+    border-top: 1px solid rgba(60, 60, 60, 0.3);
     border-bottom: 1px solid rgba(60,60,60,0.3);
 }
 
@@ -792,6 +820,7 @@ body {
     grid-template-columns: 1fr 1fr 1fr;
     gap: 6px;
     padding: 10px 14px 14px;
+    background: rgba(18, 18, 22, 0.96);
 }
 
 /* Individual slot (drop target) */

@@ -2,8 +2,12 @@
  * CNBT Inventory - Gunsmith Panel
  *
  * Floating draggable window with:
- *  - Transparent viewport (in-game weapon model renders behind it via scripted camera)
- *  - Attachment slots that glow green/red as soon as drag starts
+ *  - Transparent viewport showing the in-game weapon model (positioned in front
+ *    of the gameplay camera by client Lua)
+ *  - Full-screen dark backdrop with a "hole" exactly at the viewport, so the
+ *    weapon is only visible inside the viewport area
+ *  - Mouse drag on the viewport rotates the weapon (handled by Lua callback)
+ *  - Attachment slots glow green/red during drag
  *  - Drag attachments from inventory onto slots
  *  - Right-click filled slot to remove
  */
@@ -24,6 +28,11 @@ window.Gunsmith = (function () {
     var isDraggingWindow = false;
     var dragOffsetX = 0;
     var dragOffsetY = 0;
+
+    // Viewport rotation drag state
+    var isRotatingWeapon = false;
+    var lastRotX = 0;
+    var lastRotY = 0;
 
     // ============================================
     // NUI MESSAGE HANDLER
@@ -68,7 +77,7 @@ window.Gunsmith = (function () {
             var ww = window.innerWidth;
             var wh = window.innerHeight;
             win.style.left = Math.max(20, (ww / 2 - 260)) + 'px';
-            win.style.top = Math.max(20, (wh / 2 - 250)) + 'px';
+            win.style.top = Math.max(20, (wh / 2 - 280)) + 'px';
             win.dataset.positioned = '1';
         }
 
@@ -77,6 +86,12 @@ window.Gunsmith = (function () {
         titleEl.textContent = weaponLabel || weaponName || '';
 
         renderSlots();
+
+        // Show backdrop, align its "hole" with the viewport
+        var backdrop = document.getElementById('gunsmith-backdrop');
+        if (backdrop) backdrop.classList.remove('hidden');
+        // Wait a frame so layout is ready
+        requestAnimationFrame(updateBackdrop);
     }
 
     function close() {
@@ -86,7 +101,25 @@ window.Gunsmith = (function () {
         var win = document.getElementById('gunsmith-window');
         win.classList.add('hidden');
 
+        var backdrop = document.getElementById('gunsmith-backdrop');
+        if (backdrop) backdrop.classList.add('hidden');
+
         clearSlotHighlights();
+    }
+
+    /**
+     * Position the backdrop "hole" (the transparent div with a huge box-shadow)
+     * exactly over the 3D viewport. Call this whenever the gunsmith window moves.
+     */
+    function updateBackdrop() {
+        var backdrop = document.getElementById('gunsmith-backdrop');
+        var viewport = document.getElementById('gunsmith-3d-viewport');
+        if (!backdrop || !viewport) return;
+        var r = viewport.getBoundingClientRect();
+        backdrop.style.left = r.left + 'px';
+        backdrop.style.top = r.top + 'px';
+        backdrop.style.width = r.width + 'px';
+        backdrop.style.height = r.height + 'px';
     }
 
     function nuiCallback(name, data) {
@@ -293,6 +326,7 @@ window.Gunsmith = (function () {
             y = Math.max(0, Math.min(y, window.innerHeight - 50));
             win.style.left = x + 'px';
             win.style.top = y + 'px';
+            updateBackdrop();
         });
 
         titlebar.addEventListener('pointerup', function () {
@@ -307,11 +341,64 @@ window.Gunsmith = (function () {
     }
 
     // ============================================
+    // VIEWPORT ROTATION (mouse drag -> rotate in-game weapon)
+    // ============================================
+
+    function initViewportRotation() {
+        var viewport = document.getElementById('gunsmith-3d-viewport');
+        if (!viewport) return;
+
+        viewport.addEventListener('pointerdown', function (e) {
+            if (e.button !== 0) return;
+            // Don't start rotation if a drag from the inventory is active
+            if (window.DragSystem && window.DragSystem.isActive && window.DragSystem.isActive()) return;
+            e.preventDefault();
+            e.stopPropagation();
+            isRotatingWeapon = true;
+            lastRotX = e.clientX;
+            lastRotY = e.clientY;
+            try { viewport.setPointerCapture(e.pointerId); } catch (err) {}
+            viewport.classList.add('dragging');
+            nuiCallback('gunsmithDragStart', {});
+        });
+
+        viewport.addEventListener('pointermove', function (e) {
+            if (!isRotatingWeapon) return;
+            var dx = e.clientX - lastRotX;
+            var dy = e.clientY - lastRotY;
+            lastRotX = e.clientX;
+            lastRotY = e.clientY;
+            if (dx !== 0 || dy !== 0) {
+                nuiCallback('gunsmithRotate', { dx: dx, dy: dy });
+            }
+        });
+
+        function endRotation(e) {
+            if (!isRotatingWeapon) return;
+            isRotatingWeapon = false;
+            viewport.classList.remove('dragging');
+            try { viewport.releasePointerCapture(e.pointerId); } catch (err) {}
+            nuiCallback('gunsmithDragEnd', {});
+        }
+
+        viewport.addEventListener('pointerup', endRotation);
+        viewport.addEventListener('pointercancel', endRotation);
+        viewport.addEventListener('pointerleave', function (e) {
+            if (isRotatingWeapon) endRotation(e);
+        });
+    }
+
+    // ============================================
     // INIT
     // ============================================
 
     function init() {
         initDraggableWindow();
+        initViewportRotation();
+
+        window.addEventListener('resize', function () {
+            if (isOpenState) updateBackdrop();
+        });
 
         var btn = document.getElementById('gunsmith-back-btn');
         if (btn) {
