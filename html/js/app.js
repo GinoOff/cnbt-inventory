@@ -620,10 +620,12 @@ window.CNBT = (function () {
     function buildSingleItemContextMenu(x, y, gridId, itemIndex, item, def, grid) {
         const options = [];
 
-        // Use
+        // Primary action: Use (orange button). If not usable, first non-destructive
+        // option is elevated to primary below.
         if (def.usable) {
             options.push({
                 label: 'Use',
+                primary: true,
                 action: function () {
                     nuiCallback('useItem', {
                         grid: gridId,
@@ -659,16 +661,15 @@ window.CNBT = (function () {
 
         // Assign to hotbar
         options.push({
-            label: 'Assign to Hotbar',
+            label: 'Hotbar',
             action: function () {
                 showHotbarAssignMenu(x, y, { item, gridId });
             },
         });
 
-        // Drop
-        options.push({ separator: true });
+        // Drop all
         options.push({
-            label: 'Drop All',
+            label: 'Drop',
             action: function () {
                 nuiCallback('dropItem', {
                     grid: gridId,
@@ -684,14 +685,26 @@ window.CNBT = (function () {
         // Drop specific quantity (only if stackable and count > 1)
         if (def.stackable && (item.count || 1) > 1) {
             options.push({
-                label: 'Drop Amount...',
+                label: 'Drop Amount',
                 action: function () {
                     showDropQuantityDialog({ grid, gridId, itemIndex, item, def });
                 },
             });
         }
 
-        showContextMenu(x, y, options);
+        // If nothing was marked primary (non-usable item), elevate the first
+        // option so the card always has a highlighted main action.
+        if (!options.some(o => o.primary) && options.length > 0) {
+            options[0].primary = true;
+        }
+
+        showContextMenu(x, y, options, {
+            image: def.image,
+            label: def.label || item.name,
+            weight: def.weight,
+            count: item.count || 1,
+            stackable: !!def.stackable,
+        });
     }
 
     function buildMultiSelectContextMenu(x, y) {
@@ -744,41 +757,144 @@ window.CNBT = (function () {
         showContextMenu(x, y, options);
     }
 
-    function showContextMenu(x, y, options) {
+    /**
+     * Render the context menu.
+     *   options: array of { label, action, primary?, separator?, header? }
+     *   card:    optional { image, label, weight, count, stackable } - when
+     *            provided, renders the Tarkov-style item detail card on top
+     *            and the options as styled action buttons below.
+     */
+    function showContextMenu(x, y, options, card) {
         const menu = document.getElementById('context-menu');
         menu.innerHTML = '';
         menu.classList.remove('hidden');
 
-        for (const opt of options) {
-            if (opt.separator) {
-                const sep = document.createElement('div');
-                sep.className = 'ctx-separator';
-                menu.appendChild(sep);
-                continue;
+        if (card) {
+            // --- Item detail card header ---
+            const cardEl = document.createElement('div');
+            cardEl.className = 'ctx-card';
+
+            const imgWrap = document.createElement('div');
+            imgWrap.className = 'ctx-card-image';
+            if (card.image) {
+                const img = document.createElement('img');
+                img.src = 'img/' + card.image;
+                img.onerror = function () { this.style.display = 'none'; };
+                imgWrap.appendChild(img);
             }
-            if (opt.header) {
-                const hdr = document.createElement('div');
-                hdr.className = 'ctx-header';
-                hdr.textContent = opt.header;
-                menu.appendChild(hdr);
-                continue;
+            cardEl.appendChild(imgWrap);
+
+            const name = document.createElement('div');
+            name.className = 'ctx-card-name';
+            name.textContent = (card.label || '').toUpperCase();
+            cardEl.appendChild(name);
+
+            const pills = document.createElement('div');
+            pills.className = 'ctx-card-pills';
+
+            if (card.weight != null) {
+                const wPill = document.createElement('span');
+                wPill.className = 'ctx-pill';
+                const wIcon = document.createElement('span');
+                wIcon.className = 'ctx-pill-icon';
+                wIcon.textContent = '\u2696'; // scales
+                wPill.appendChild(wIcon);
+                wPill.appendChild(document.createTextNode(formatWeight(card.weight)));
+                pills.appendChild(wPill);
             }
 
-            const item = document.createElement('div');
-            item.className = 'ctx-item';
-            item.textContent = opt.label;
-            item.addEventListener('click', function () {
-                hideContextMenu();
-                opt.action();
-            });
-            menu.appendChild(item);
+            if (card.stackable || (card.count && card.count > 1)) {
+                const cPill = document.createElement('span');
+                cPill.className = 'ctx-pill';
+                const cIcon = document.createElement('span');
+                cIcon.className = 'ctx-pill-icon';
+                cIcon.textContent = '\u25A0'; // square
+                cPill.appendChild(cIcon);
+                cPill.appendChild(document.createTextNode('x' + (card.count || 1)));
+                pills.appendChild(cPill);
+            }
+
+            if (pills.childNodes.length > 0) cardEl.appendChild(pills);
+            menu.appendChild(cardEl);
+
+            // --- Action buttons ---
+            const actions = document.createElement('div');
+            actions.className = 'ctx-actions';
+
+            // Primary button(s) render full-width, secondary buttons pair up 2
+            // per row in order. Separators/headers are ignored in card mode.
+            const primary = [];
+            const secondary = [];
+            for (const opt of options) {
+                if (opt.separator || opt.header) continue;
+                if (opt.primary) primary.push(opt);
+                else secondary.push(opt);
+            }
+
+            for (const opt of primary) {
+                actions.appendChild(createCtxButton(opt, true));
+            }
+
+            for (let i = 0; i < secondary.length; i += 2) {
+                const pair = secondary.slice(i, i + 2);
+                if (pair.length === 2) {
+                    const row = document.createElement('div');
+                    row.className = 'ctx-row';
+                    row.appendChild(createCtxButton(pair[0], false));
+                    row.appendChild(createCtxButton(pair[1], false));
+                    actions.appendChild(row);
+                } else {
+                    actions.appendChild(createCtxButton(pair[0], false));
+                }
+            }
+
+            menu.appendChild(actions);
+        } else {
+            // --- Legacy simple list (multi-select / hotbar submenu) ---
+            for (const opt of options) {
+                if (opt.separator) {
+                    const sep = document.createElement('div');
+                    sep.className = 'ctx-separator';
+                    menu.appendChild(sep);
+                    continue;
+                }
+                if (opt.header) {
+                    const hdr = document.createElement('div');
+                    hdr.className = 'ctx-header';
+                    hdr.textContent = opt.header;
+                    menu.appendChild(hdr);
+                    continue;
+                }
+                menu.appendChild(createCtxButton(opt, !!opt.primary));
+            }
         }
 
         // Position - ensure menu stays on screen
-        const maxX = window.innerWidth - 170;
-        const maxY = window.innerHeight - menu.offsetHeight - 10;
-        menu.style.left = Math.min(x, maxX) + 'px';
-        menu.style.top = Math.min(y, maxY) + 'px';
+        const menuRect = menu.getBoundingClientRect();
+        const maxX = window.innerWidth - menuRect.width - 10;
+        const maxY = window.innerHeight - menuRect.height - 10;
+        menu.style.left = Math.max(10, Math.min(x, maxX)) + 'px';
+        menu.style.top = Math.max(10, Math.min(y, maxY)) + 'px';
+    }
+
+    function createCtxButton(opt, isPrimary) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ctx-btn' + (isPrimary ? ' ctx-btn-primary' : '');
+        btn.textContent = opt.label;
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            hideContextMenu();
+            if (typeof opt.action === 'function') opt.action();
+        });
+        return btn;
+    }
+
+    function formatWeight(grams) {
+        if (grams == null) return '';
+        if (grams >= 1000) return (grams / 1000).toFixed(grams % 1000 === 0 ? 0 : 1) + ' kg';
+        return grams + ' g';
     }
 
     function showHotbarAssignMenu(x, y, target) {
