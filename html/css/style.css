@@ -5,27 +5,35 @@
    ============================================ */
 
 :root {
-    --cell-size: 60px;
-    --cell-gap: 2px;
-    --bg-dark: rgba(15, 15, 15, 0.92);
-    --bg-panel: rgba(25, 25, 25, 0.95);
-    --bg-cell: rgba(45, 45, 45, 0.7);
-    --bg-cell-hover: rgba(65, 65, 65, 0.8);
-    --border-color: rgba(80, 80, 80, 0.6);
-    --accent: #4a9eff;
-    --accent-glow: rgba(74, 158, 255, 0.3);
-    --success: #4aff7e;
-    --success-glow: rgba(74, 255, 126, 0.25);
-    --danger: #ff4a4a;
-    --danger-glow: rgba(255, 74, 74, 0.25);
-    --select-color: #ffd74a;
-    --select-glow: rgba(255, 215, 74, 0.35);
-    --text-primary: #e0e0e0;
-    --text-secondary: #888;
-    --text-dim: #555;
-    --hotbar-bg: rgba(30, 30, 30, 0.9);
-    --tooltip-bg: rgba(10, 10, 10, 0.96);
-    --ctx-bg: rgba(20, 20, 20, 0.97);
+    --cell-size: 62px;
+    --cell-gap: 1px;
+
+    /* Tarkov-inspired muted green/gray palette. All of these can be
+       overridden from config.lua via Config.Colors.inventory, applied at
+       runtime as CSS custom properties by app.js::applyColorPalette. */
+    --bg-dark:       rgba(22, 27, 25, 0.96);
+    --bg-panel:      rgba(35, 42, 38, 0.97);
+    --bg-panel-alt:  rgba(42, 50, 45, 0.95);
+    --bg-cell:       rgba(52, 60, 54, 0.55);
+    --bg-cell-hover: rgba(72, 82, 74, 0.75);
+    --bg-item:       rgba(46, 54, 49, 0.92);
+    --bg-item-hover: rgba(62, 72, 64, 0.96);
+    --border-color:  rgba(12, 15, 13, 0.95);
+    --border-accent: rgba(140, 150, 135, 0.35);
+    --accent:        #c8c8b0;
+    --accent-glow:   rgba(200, 200, 176, 0.28);
+    --success:       #8fbf6b;
+    --success-glow:  rgba(143, 191, 107, 0.35);
+    --danger:        #d45c5c;
+    --danger-glow:   rgba(212, 92, 92, 0.32);
+    --select-color:  #e8c978;
+    --select-glow:   rgba(232, 201, 120, 0.38);
+    --text-primary:   #d8dcd0;
+    --text-secondary: #9aa396;
+    --text-dim:       #5d6560;
+    --hotbar-bg:  rgba(28, 34, 31, 0.92);
+    --tooltip-bg: rgba(10, 13, 11, 0.97);
+    --ctx-bg:     rgba(20, 24, 22, 0.98);
     --transition-fast: 0.12s;
     --transition-med: 0.2s;
     --slide-duration: 0.3s;
@@ -115,65 +123,141 @@ body {
 #top-bar {
     display: flex;
     align-items: center;
-    gap: 20px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 10px;
     will-change: transform, opacity;
 }
 
 #inventory-panels {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     align-items: flex-start;
     will-change: transform, opacity;
 }
 
 /* ============================================
-   PANELS
+   PANELS (flat Tarkov-style)
    ============================================ */
 
 .inv-panel {
     background: var(--bg-panel);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    border-radius: 0;
+    padding: 0;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6);
+    position: relative;
+}
+
+/* Thin accent strip along the top edge of every panel */
+.inv-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--border-accent);
+    pointer-events: none;
 }
 
 .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
+    padding: 10px 14px;
+    background: var(--bg-panel-alt);
     border-bottom: 1px solid var(--border-color);
+    gap: 14px;
+    min-height: 40px;
+}
+
+.panel-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .panel-title {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.panel-title-chevron {
+    color: var(--accent);
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+.panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.panel-action-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: inherit;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: var(--text-secondary);
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: color var(--transition-fast) ease, border-color var(--transition-fast) ease, background var(--transition-fast) ease;
+    white-space: nowrap;
+}
+
+.panel-action-btn:hover {
+    color: var(--accent);
+    border-color: var(--border-accent);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.panel-action-btn:active {
+    color: var(--select-color);
 }
 
 .weight-info {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+    padding-left: 10px;
+    border-left: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 
 .weight-info.overweight {
     color: var(--danger);
 }
 
+.panel-body {
+    padding: 12px;
+}
+
+/* Wrap grids inside panels with consistent padding */
+.inv-panel > .grid-container {
+    margin: 12px;
+}
+
 /* ============================================
-   GRID
+   GRID (flat Tarkov cells)
    ============================================ */
 
 .grid-container {
     display: grid;
     gap: var(--cell-gap);
     position: relative;
+    background: var(--border-color);
+    padding: 1px;
 }
 
 .grid-cell {
@@ -181,8 +265,9 @@ body {
     height: var(--cell-size);
     background: var(--bg-cell);
     border: 1px solid var(--border-color);
-    border-radius: 3px;
+    border-radius: 0;
     transition: background var(--transition-fast) ease;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .grid-cell.highlight-valid {
@@ -200,58 +285,60 @@ body {
 }
 
 /* ============================================
-   ITEMS (positioned absolutely over grid)
+   ITEMS (flat, label TL + count BR)
    ============================================ */
 
 .grid-item {
     position: absolute;
-    border-radius: 4px;
-    background: rgba(50, 50, 50, 0.85);
-    border: 1px solid rgba(100, 100, 100, 0.6);
+    border-radius: 0;
+    background: var(--bg-item);
+    border: 1px solid var(--border-color);
     cursor: grab;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: box-shadow var(--transition-fast) ease, border-color var(--transition-fast) ease;
+    transition: background var(--transition-fast) ease, border-color var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
     will-change: transform;
     z-index: 5;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .grid-item:hover {
-    border-color: var(--accent);
-    box-shadow: 0 0 8px var(--accent-glow);
+    background: var(--bg-item-hover);
+    border-color: var(--border-accent);
     z-index: 6;
 }
 
 .grid-item.selected {
     border-color: var(--select-color);
-    box-shadow: 0 0 10px var(--select-glow);
+    box-shadow: 0 0 0 1px var(--select-color), inset 0 0 12px var(--select-glow);
     z-index: 7;
 }
 
 .grid-item.selected:hover {
     border-color: var(--select-color);
-    box-shadow: 0 0 14px var(--select-glow);
+    box-shadow: 0 0 0 1px var(--select-color), inset 0 0 16px var(--select-glow);
 }
 
 .grid-item.dragging {
-    opacity: 0.3;
+    opacity: 0.25;
     pointer-events: none;
 }
 
 .grid-item .item-image {
-    width: 80%;
-    height: 60%;
+    width: 78%;
+    height: 78%;
     object-fit: contain;
     pointer-events: none;
     image-rendering: -webkit-optimize-contrast;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
 }
 
 .grid-item .item-image-placeholder {
-    width: 80%;
-    height: 60%;
+    width: 78%;
+    height: 78%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -266,86 +353,98 @@ body {
     font-size: 10px;
     font-weight: 600;
     color: var(--text-primary);
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.95);
     pointer-events: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 95%;
-    text-align: center;
+    max-width: calc(100% - 8px);
+    text-align: left;
     position: absolute;
-    top: 2px;
-    left: 3px;
+    top: 3px;
+    left: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 .grid-item .item-count {
     position: absolute;
     bottom: 2px;
-    right: 4px;
-    font-size: 11px;
-    font-weight: 700;
+    right: 5px;
+    font-size: 14px;
+    font-weight: 800;
     color: var(--text-primary);
-    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.6);
     pointer-events: none;
     font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: -0.5px;
 }
 
 .grid-item .item-rotated-indicator {
     position: absolute;
-    top: 2px;
+    top: 3px;
     right: 4px;
-    font-size: 8px;
+    font-size: 9px;
     color: var(--accent);
     pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 /* ============================================
-   HOTBAR
+   HOTBAR (flat)
    ============================================ */
 
 #hotbar {
     display: flex;
-    gap: 6px;
+    gap: 2px;
+    background: var(--border-color);
+    padding: 1px;
+    border: 1px solid var(--border-color);
 }
 
 .hotbar-slot {
-    width: 56px;
-    height: 56px;
+    width: 54px;
+    height: 54px;
     background: var(--hotbar-bg);
-    border: 2px solid var(--border-color);
-    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 0;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: border-color var(--transition-fast) ease;
+    transition: background var(--transition-fast) ease, border-color var(--transition-fast) ease;
     cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .hotbar-slot:hover {
-    border-color: var(--accent);
+    background: var(--bg-item-hover);
+    border-color: var(--border-accent);
 }
 
 .hotbar-slot .hotbar-key {
     position: absolute;
-    top: 2px;
+    top: 3px;
     left: 4px;
     font-size: 10px;
     font-weight: 700;
-    color: var(--text-dim);
+    color: var(--text-secondary);
     pointer-events: none;
+    letter-spacing: 0.5px;
 }
 
 .hotbar-slot .hotbar-item-img {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     object-fit: contain;
     pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
 }
 
 .hotbar-slot .hotbar-item-placeholder {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -356,45 +455,50 @@ body {
 }
 
 .hotbar-slot.active {
-    border-color: var(--accent);
-    box-shadow: 0 0 10px var(--accent-glow);
+    border-color: var(--select-color);
+    box-shadow: inset 0 0 0 1px var(--select-color), inset 0 0 10px var(--select-glow);
 }
 
 /* ============================================
-   SORT BUTTONS
+   SORT / HEADER ACTION BUTTONS
    ============================================ */
 
 #sort-buttons {
     display: flex;
-    gap: 4px;
+    gap: 2px;
 }
 
 #sort-buttons button {
-    width: 36px;
     height: 36px;
+    padding: 0 12px;
     background: var(--hotbar-bg);
     border: 1px solid var(--border-color);
-    border-radius: 4px;
-    color: var(--text-primary);
-    font-size: 18px;
+    border-radius: 0;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     cursor: pointer;
-    transition: all var(--transition-fast) ease;
+    transition: color var(--transition-fast) ease, border-color var(--transition-fast) ease, background var(--transition-fast) ease;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 #sort-buttons button:hover {
-    border-color: var(--accent);
-    background: rgba(74, 158, 255, 0.15);
+    color: var(--accent);
+    border-color: var(--border-accent);
+    background: var(--bg-item-hover);
 }
 
 #sort-buttons button:active {
-    transform: scale(0.95);
+    color: var(--select-color);
 }
 
 /* ============================================
-   BACKPACK
+   BACKPACK (flat)
    ============================================ */
 
 #backpack-section {
@@ -402,35 +506,48 @@ body {
     display: flex;
     gap: 10px;
     align-items: flex-start;
+    padding: 0 12px 12px;
 }
 
 #backpack-slot-container {
     min-width: 80px;
 }
 
+#backpack-slot-container .panel-header {
+    padding: 6px 10px;
+    background: var(--bg-panel-alt);
+    min-height: 0;
+    margin-bottom: 6px;
+}
+
 .backpack-drop-zone {
     width: calc(var(--cell-size) * 2 + var(--cell-gap));
     height: calc(var(--cell-size) * 2 + var(--cell-gap));
     background: var(--bg-cell);
-    border: 2px dashed var(--border-color);
-    border-radius: 6px;
+    border: 1px dashed var(--border-accent);
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: border-color var(--transition-fast) ease;
+    transition: border-color var(--transition-fast) ease, background var(--transition-fast) ease;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .backpack-drop-zone.drag-over {
     border-color: var(--accent);
-    background: var(--accent-glow);
+    border-style: solid;
+    background: var(--bg-cell-hover);
 }
 
 .backpack-drop-zone .empty-text {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-dim);
     text-align: center;
     pointer-events: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0 6px;
 }
 
 .backpack-drop-zone .backpack-equipped-item {
@@ -448,28 +565,48 @@ body {
     width: 70%;
     height: 70%;
     object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
 }
 
 .backpack-drop-zone .backpack-equipped-item .bp-label {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-primary);
     margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#backpack-grid-container .panel-header {
+    padding: 6px 10px;
+    background: var(--bg-panel-alt);
+    min-height: 0;
+    margin-bottom: 6px;
 }
 
 /* ============================================
-   CONTEXT MENU
+   CONTEXT MENU (flat)
    ============================================ */
 
 #context-menu {
     position: fixed;
     background: var(--ctx-bg);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
-    min-width: 160px;
-    padding: 4px 0;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    border-radius: 0;
+    min-width: 170px;
+    padding: 3px 0;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.7);
     z-index: 500;
     animation: ctxFadeIn 0.1s ease-out;
+}
+
+#context-menu::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--border-accent);
 }
 
 @keyframes ctxFadeIn {
@@ -479,23 +616,29 @@ body {
 
 .ctx-item {
     padding: 8px 14px;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-primary);
     cursor: pointer;
-    transition: background var(--transition-fast) ease;
+    transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 500;
 }
 
 .ctx-item:hover {
-    background: rgba(74, 158, 255, 0.2);
+    background: var(--bg-item-hover);
+    color: var(--accent);
 }
 
 .ctx-header {
-    padding: 6px 14px;
-    font-size: 11px;
+    padding: 7px 14px;
+    font-size: 10px;
     color: var(--text-dim);
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1.5px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 2px;
 }
 
 .ctx-separator {
@@ -524,16 +667,31 @@ body {
 .split-content {
     background: var(--bg-panel);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 0;
     padding: 20px;
     min-width: 280px;
     text-align: center;
+    position: relative;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.7);
+}
+
+.split-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--border-accent);
 }
 
 .split-content h3 {
-    font-size: 16px;
-    margin-bottom: 12px;
+    font-size: 13px;
+    margin-bottom: 14px;
     color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 700;
 }
 
 .split-info {
@@ -566,24 +724,30 @@ body {
 }
 
 .split-buttons button {
-    padding: 8px 20px;
+    padding: 8px 22px;
     border: 1px solid var(--border-color);
-    border-radius: 4px;
+    border-radius: 0;
     background: var(--bg-cell);
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     cursor: pointer;
-    transition: all var(--transition-fast) ease;
+    transition: color var(--transition-fast) ease, border-color var(--transition-fast) ease, background var(--transition-fast) ease;
 }
 
 .split-buttons button:hover {
-    border-color: var(--accent);
-    background: rgba(74, 158, 255, 0.15);
+    color: var(--accent);
+    border-color: var(--border-accent);
+    background: var(--bg-item-hover);
 }
 
 #split-confirm {
-    background: rgba(74, 158, 255, 0.2);
-    border-color: var(--accent);
+    background: var(--bg-item-hover);
+    border-color: var(--border-accent);
+    color: var(--accent);
 }
 
 /* ============================================
@@ -594,32 +758,48 @@ body {
     position: fixed;
     background: var(--tooltip-bg);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 0;
     padding: 10px 12px;
-    max-width: 220px;
+    max-width: 240px;
     z-index: 400;
     pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
+    position: fixed;
+}
+
+#tooltip::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--border-accent);
 }
 
 #tooltip-name {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
     color: var(--accent);
-    margin-bottom: 4px;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 #tooltip-desc {
     font-size: 11px;
     color: var(--text-secondary);
     margin-bottom: 6px;
-    line-height: 1.3;
+    line-height: 1.35;
 }
 
 #tooltip-info {
     font-size: 10px;
     color: var(--text-dim);
     line-height: 1.4;
+    border-top: 1px solid var(--border-color);
+    padding-top: 5px;
+    margin-top: 4px;
 }
 
 /* ============================================
@@ -632,11 +812,11 @@ body {
     left: 0;
     pointer-events: none;
     z-index: 1500;
-    opacity: 0.85;
-    border-radius: 4px;
-    background: rgba(50, 50, 50, 0.9);
-    border: 2px solid var(--accent);
-    box-shadow: 0 0 16px var(--accent-glow);
+    opacity: 0.9;
+    border-radius: 0;
+    background: var(--bg-item);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 14px var(--accent-glow), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
     display: flex;
     flex-direction: column;
     align-items: center;

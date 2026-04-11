@@ -110,10 +110,64 @@ window.CNBT = (function () {
 
     let closeAnimTimeout = null;
 
+    /**
+     * Apply a color palette (from config.lua / Config.Colors) as CSS variables
+     * on :root. Any of the keys may be missing — unspecified values keep their
+     * style.css defaults.
+     */
+    function applyColorPalette(colors) {
+        if (!colors) return;
+        const root = document.documentElement;
+        const map = {
+            inventory: {
+                bgDark:        '--bg-dark',
+                bgPanel:       '--bg-panel',
+                bgPanelAlt:    '--bg-panel-alt',
+                bgCell:        '--bg-cell',
+                bgCellHover:   '--bg-cell-hover',
+                bgItem:        '--bg-item',
+                bgItemHover:   '--bg-item-hover',
+                borderColor:   '--border-color',
+                borderAccent:  '--border-accent',
+                accent:        '--accent',
+                accentGlow:    '--accent-glow',
+                success:       '--success',
+                successGlow:   '--success-glow',
+                danger:        '--danger',
+                dangerGlow:    '--danger-glow',
+                selectColor:   '--select-color',
+                selectGlow:    '--select-glow',
+                textPrimary:   '--text-primary',
+                textSecondary: '--text-secondary',
+                textDim:       '--text-dim',
+                hotbarBg:      '--hotbar-bg',
+                tooltipBg:     '--tooltip-bg',
+                ctxBg:         '--ctx-bg',
+            },
+            gunsmith: {
+                accent:     '--gs-accent',
+                accentDim:  '--gs-accent-dim',
+                accentGlow: '--gs-accent-glow',
+                panel:      '--gs-panel',
+                line:       '--gs-line',
+            },
+        };
+        for (const section of Object.keys(map)) {
+            const src = colors[section];
+            if (!src) continue;
+            for (const key of Object.keys(map[section])) {
+                if (src[key] != null) root.style.setProperty(map[section][key], src[key]);
+            }
+        }
+    }
+
     function handleOpen(msg) {
         itemDefs = msg.itemDefs || {};
         backpackConfigs = msg.backpackConfigs || {};
         hotbarSlotCount = msg.hotbarSlots || 5;
+
+        // Apply config-driven color palette to :root CSS variables
+        applyColorPalette(msg.colors);
 
         const container = document.getElementById('inventory-container');
         // Cancel any pending close animation
@@ -907,6 +961,13 @@ window.CNBT = (function () {
         document.getElementById('btn-sort-h').addEventListener('click', function () {
             sortActiveGrid('horizontal');
         });
+        const resetBtn = document.getElementById('btn-reset-filter');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function () {
+                // Placeholder: no filter state is implemented yet, but keep the
+                // button visible for UI parity with the Tarkov reference.
+            });
+        }
     }
 
     function sortActiveGrid(mode) {

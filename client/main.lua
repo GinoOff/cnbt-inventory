@@ -66,6 +66,13 @@ local function closeInventory()
     if not isOpen then return end
     isOpen = false
     currentExternal = nil
+    -- If the gunsmith was open, clean it up too (deletes the 3D weapon object,
+    -- stops the render thread, and re-enables the disabled controls). Without
+    -- this the player gets stuck: inventory closes but gunsmith controls stay
+    -- disabled and the floating weapon model remains in front of the camera.
+    if CloseGunsmith then
+        pcall(CloseGunsmith)
+    end
     SetNuiFocus(false, false)
     SetNuiFocusKeepInput(false)
     SendNUIMessage({ type = 'close' })
@@ -116,6 +123,7 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
         itemDefs = itemDefs,
         backpackConfigs = backpackConfigs,
         hotbarSlots = Config.HotbarSlots,
+        colors = Config.Colors,
     })
 end)
 

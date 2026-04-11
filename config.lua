@@ -85,6 +85,53 @@ Config.ItemEffects = {
 }
 
 -- ============================================
+-- UI COLOR PALETTE
+-- ============================================
+--
+-- All values are plain CSS strings (hex, rgb(), rgba()). They are sent to the
+-- NUI on open and applied as CSS custom properties on :root, so you can theme
+-- the inventory and the gunsmith without touching style.css.
+--
+-- Change any value here and reload the resource to see the new palette.
+
+Config.Colors = {
+    -- Main inventory palette (Tarkov-inspired muted green/gray)
+    inventory = {
+        bgDark        = 'rgba(22, 27, 25, 0.96)',  -- outer container bg
+        bgPanel       = 'rgba(35, 42, 38, 0.97)',  -- panel (locker) background
+        bgPanelAlt    = 'rgba(42, 50, 45, 0.95)',  -- inner header / strip
+        bgCell        = 'rgba(52, 60, 54, 0.55)',  -- empty grid cell
+        bgCellHover   = 'rgba(72, 82, 74, 0.75)',
+        bgItem        = 'rgba(46, 54, 49, 0.92)',  -- item tile background
+        bgItemHover   = 'rgba(62, 72, 64, 0.96)',
+        borderColor   = 'rgba(12, 15, 13, 0.95)',  -- hard dark cell/item borders
+        borderAccent  = 'rgba(140, 150, 135, 0.35)',
+        accent        = '#c8c8b0',                 -- muted cream/tan
+        accentGlow    = 'rgba(200, 200, 176, 0.28)',
+        success       = '#8fbf6b',                 -- olive green
+        successGlow   = 'rgba(143, 191, 107, 0.35)',
+        danger        = '#d45c5c',                 -- desaturated red
+        dangerGlow    = 'rgba(212, 92, 92, 0.32)',
+        selectColor   = '#e8c978',                 -- dusty amber
+        selectGlow    = 'rgba(232, 201, 120, 0.38)',
+        textPrimary   = '#d8dcd0',
+        textSecondary = '#9aa396',
+        textDim       = '#5d6560',
+        hotbarBg      = 'rgba(28, 34, 31, 0.92)',
+        tooltipBg     = 'rgba(10, 13, 11, 0.97)',
+        ctxBg         = 'rgba(20, 24, 22, 0.98)',
+    },
+    -- Gunsmith-specific palette (tactical orange)
+    gunsmith = {
+        accent     = '#ff8c1a',
+        accentDim  = 'rgba(255, 140, 26, 0.55)',
+        accentGlow = 'rgba(255, 140, 26, 0.35)',
+        panel      = 'rgba(8, 10, 14, 0.88)',
+        line       = 'rgba(255, 255, 255, 0.14)',
+    },
+}
+
+-- ============================================
 -- WEAPON ATTACHMENT SYSTEM (Gunsmith)
 -- ============================================
 

@@ -8,14 +8,10 @@
 </head>
 <body>
     <div id="inventory-container" class="hidden">
-        <!-- Top bar -->
+        <!-- Top bar: hotbar only (sort/action buttons moved into panel header) -->
         <div id="top-bar">
             <div id="hotbar">
                 <!-- Filled dynamically -->
-            </div>
-            <div id="sort-buttons">
-                <button id="btn-sort-v" title="Sort Vertical">&#8597;</button>
-                <button id="btn-sort-h" title="Sort Horizontal">&#8596;</button>
             </div>
         </div>
 
@@ -23,7 +19,15 @@
             <!-- Player inventory panel -->
             <div id="player-panel" class="inv-panel">
                 <div class="panel-header">
-                    <span class="panel-title">Inventory</span>
+                    <div class="panel-title-group">
+                        <span class="panel-title">Your Locker</span>
+                        <span class="panel-title-chevron">&#9662;</span>
+                    </div>
+                    <div class="panel-actions" id="sort-buttons">
+                        <button class="panel-action-btn" id="btn-sort-v" title="Pack items">Pack items</button>
+                        <button class="panel-action-btn" id="btn-sort-h" title="Sort items">Sort items</button>
+                        <button class="panel-action-btn" id="btn-reset-filter" title="Reset filtering">Reset filtering</button>
+                    </div>
                     <span id="player-weight" class="weight-info">0 / 0 g</span>
                 </div>
                 <div id="player-grid" class="grid-container"></div>
@@ -32,7 +36,9 @@
                 <div id="backpack-section">
                     <div id="backpack-slot-container">
                         <div class="panel-header">
-                            <span class="panel-title">Backpack</span>
+                            <div class="panel-title-group">
+                                <span class="panel-title">Backpack</span>
+                            </div>
                         </div>
                         <div id="backpack-slot" class="backpack-drop-zone">
                             <span class="empty-text">Drag backpack here</span>
@@ -40,7 +46,9 @@
                     </div>
                     <div id="backpack-grid-container" class="hidden">
                         <div class="panel-header">
-                            <span class="panel-title" id="backpack-label">Backpack</span>
+                            <div class="panel-title-group">
+                                <span class="panel-title" id="backpack-label">Backpack</span>
+                            </div>
                             <span id="backpack-weight" class="weight-info">0 / 0 g</span>
                         </div>
                         <div id="backpack-grid" class="grid-container"></div>
@@ -51,7 +59,10 @@
             <!-- External inventory panel (stash/vehicle/drop) -->
             <div id="external-panel" class="inv-panel hidden">
                 <div class="panel-header">
-                    <span class="panel-title" id="external-label">Storage</span>
+                    <div class="panel-title-group">
+                        <span class="panel-title" id="external-label">Storage</span>
+                        <span class="panel-title-chevron">&#9662;</span>
+                    </div>
                     <span id="external-weight" class="weight-info">0 / 0 g</span>
                 </div>
                 <div id="external-grid" class="grid-container"></div>
