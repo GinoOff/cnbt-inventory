@@ -12,15 +12,17 @@
 
     /* Modern tactical palette (muted olive/sage with cream accents).
        All values can be overridden from config.lua via Config.Colors.inventory,
-       applied at runtime as CSS custom properties by app.js::applyColorPalette. */
-    --bg-dark:       rgba(12, 16, 13, 0.82);
-    --bg-panel:      rgba(18, 24, 20, 0.78);
-    --bg-panel-alt:  rgba(30, 38, 32, 0.88);
-    --bg-cell:       rgba(36, 44, 38, 0.55);
-    --bg-cell-hover: rgba(62, 74, 64, 0.75);
-    --bg-item:       rgba(42, 52, 44, 0.92);
-    --bg-item-hover: rgba(58, 70, 60, 0.96);
-    --border-color:  rgba(6, 9, 7, 0.92);
+       applied at runtime as CSS custom properties by app.js::applyColorPalette.
+       NOTE: FiveM CEF does not support backdrop-filter, so panel backgrounds
+       use opaque rgba values instead of relying on blur. */
+    --bg-dark:       rgba(14, 18, 15, 0.96);
+    --bg-panel:      rgba(18, 24, 20, 0.94);
+    --bg-panel-alt:  rgba(8, 11, 9, 0.96);
+    --bg-cell:       rgba(36, 44, 38, 0.7);
+    --bg-cell-hover: rgba(62, 74, 64, 0.85);
+    --bg-item:       rgba(42, 52, 44, 0.94);
+    --bg-item-hover: rgba(58, 70, 60, 0.98);
+    --border-color:  rgba(6, 9, 7, 0.95);
     --border-accent: rgba(200, 207, 168, 0.35);
     --accent:        #d4dba8;
     --accent-glow:   rgba(212, 219, 168, 0.38);
@@ -33,9 +35,9 @@
     --text-primary:   #e8ecd8;
     --text-secondary: #a6ae92;
     --text-dim:       #606860;
-    --hotbar-bg:  rgba(16, 22, 18, 0.82);
-    --tooltip-bg: rgba(8, 11, 9, 0.96);
-    --ctx-bg:     rgba(12, 16, 13, 0.96);
+    --hotbar-bg:  rgba(14, 18, 15, 0.94);
+    --tooltip-bg: rgba(8, 11, 9, 0.97);
+    --ctx-bg:     rgba(10, 14, 11, 0.98);
     --transition-fast: 0.12s;
     --transition-med: 0.2s;
     --slide-duration: 0.3s;
@@ -152,8 +154,6 @@ body {
             transparent 9px
         ),
         var(--bg-panel);
-    -webkit-backdrop-filter: blur(12px) saturate(130%);
-    backdrop-filter: blur(12px) saturate(130%);
     border: 1px solid var(--border-color);
     border-radius: 0;
     padding: 0;
@@ -167,8 +167,10 @@ body {
         18px 100%,
         0 calc(100% - 18px)
     );
+    /* Subtle drop shadow only - no heavy blur halo (was creating a black
+       rectangle behind the panel on FiveM CEF which doesn't blur shadows well) */
     box-shadow:
-        0 24px 70px rgba(0, 0, 0, 0.7),
+        0 4px 12px rgba(0, 0, 0, 0.4),
         0 0 0 1px rgba(255, 255, 255, 0.02),
         inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -198,13 +200,18 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 14px 20px 14px 22px;
+    /* Much darker than the panel body so the header clearly detaches */
     background: linear-gradient(180deg,
-        rgba(48, 58, 50, 0.55) 0%,
-        rgba(22, 28, 24, 0.45) 100%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        rgba(4, 6, 5, 0.96) 0%,
+        rgba(8, 11, 9, 0.94) 100%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.9);
+    box-shadow:
+        0 2px 0 rgba(255, 255, 255, 0.025),
+        0 4px 10px rgba(0, 0, 0, 0.35);
     gap: 16px;
     min-height: 48px;
     position: relative;
+    z-index: 1;
 }
 
 /* Glowing underline on the header */
@@ -554,8 +561,6 @@ body {
     gap: 4px;
     padding: 6px;
     background: var(--hotbar-bg);
-    -webkit-backdrop-filter: blur(10px) saturate(130%);
-    backdrop-filter: blur(10px) saturate(130%);
     border: 1px solid var(--border-color);
     position: relative;
     clip-path: polygon(
@@ -567,7 +572,7 @@ body {
         0 calc(100% - 10px)
     );
     box-shadow:
-        0 14px 36px rgba(0, 0, 0, 0.55),
+        0 3px 8px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -799,15 +804,13 @@ body {
 
 #context-menu {
     position: fixed;
-    background: rgba(16, 20, 18, 0.94);
-    -webkit-backdrop-filter: blur(14px) saturate(135%);
-    backdrop-filter: blur(14px) saturate(135%);
-    border: 1px solid rgba(0, 0, 0, 0.85);
+    background: var(--ctx-bg);
+    border: 1px solid rgba(0, 0, 0, 0.95);
     border-radius: 0;
     width: 230px;
     padding: 14px;
     box-shadow:
-        0 20px 60px rgba(0, 0, 0, 0.85),
+        0 4px 14px rgba(0, 0, 0, 0.55),
         inset 0 1px 0 rgba(255, 255, 255, 0.06);
     z-index: 500;
     animation: ctxFadeIn 0.14s ease-out;
@@ -1005,7 +1008,7 @@ body {
     min-width: 280px;
     text-align: center;
     position: relative;
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
 }
 
 .split-content::before {
@@ -1090,8 +1093,6 @@ body {
 #tooltip {
     position: fixed;
     background: var(--tooltip-bg);
-    -webkit-backdrop-filter: blur(12px) saturate(130%);
-    backdrop-filter: blur(12px) saturate(130%);
     border: 1px solid var(--border-color);
     border-radius: 0;
     padding: 12px 16px;
@@ -1099,7 +1100,7 @@ body {
     z-index: 400;
     pointer-events: none;
     box-shadow:
-        0 14px 36px rgba(0, 0, 0, 0.75),
+        0 4px 12px rgba(0, 0, 0, 0.55),
         inset 0 1px 0 rgba(255, 255, 255, 0.05);
     clip-path: polygon(
         0 0,
