@@ -657,6 +657,56 @@ body {
         0 0 16px var(--select-glow);
 }
 
+/* Count badge: shown in the hotbar preview overlay so the player can see
+   how many of each item they have without opening the full inventory. */
+.hotbar-slot .hotbar-count {
+    position: absolute;
+    bottom: 3px;
+    right: 5px;
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    pointer-events: none;
+    letter-spacing: 0.5px;
+    padding: 1px 4px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* ============================================
+   HOTBAR-ONLY PREVIEW MODE
+   (triggered by the "H" keybind when the full inventory is closed)
+   ============================================ */
+
+#inventory-container.hotbar-only {
+    /* Flex direction is column - hotbar sits at the bottom, centered. */
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 0 40px 0;
+}
+
+#inventory-container.hotbar-only #inventory-panels {
+    display: none !important;
+}
+
+#inventory-container.hotbar-only #top-bar {
+    margin: 0;
+    animation: hotbarPreviewFade 220ms ease-out forwards;
+}
+
+@keyframes hotbarPreviewFade {
+    from {
+        transform: translate3d(0, 12px, 0);
+        opacity: 0;
+    }
+    to {
+        transform: translate3d(0, 0, 0);
+        opacity: 1;
+    }
+}
+
 /* ============================================
    SORT / HEADER ACTION BUTTONS
    (defined with .panel-action-btn above)

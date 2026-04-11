@@ -505,38 +505,35 @@ AddEventHandler('cnbt-inventory:server:splitStack', function(data)
 end)
 
 -- Use item
-RegisterNetEvent('cnbt-inventory:server:useItem')
-AddEventHandler('cnbt-inventory:server:useItem', function(data)
-    local src = source
-    local xPlayer = ESX.GetPlayerFromId(src)
-    if not xPlayer then return end
-    local identifier = xPlayer.identifier
-
+-- Core item use logic, shared between direct use (from inventory UI) and
+-- hotbar key use (when the inventory UI is closed).
+-- gridLabel is 'player' or 'backpack', itemIndex is 1-indexed.
+-- Returns true on success, false if the item couldn't be used.
+local function applyItemUse(src, identifier, gridLabel, itemIndex)
     local inv = loadInventory(identifier, 'player')
     local gridItems
-    if data.grid == 'backpack' and inv.backpack then
+    if gridLabel == 'backpack' and inv.backpack then
         gridItems = inv.backpack.items
     else
         gridItems = inv.items
     end
 
-    local itemIndex = data.itemIndex
-    if not gridItems[itemIndex] then return end
+    if not gridItems[itemIndex] then return false end
 
     local item = gridItems[itemIndex]
     local def = getItemDef(item.name)
-    if not def or not def.usable then return end
+    if not def or not def.usable then return false end
 
     -- Trigger generic event for external scripts
-    TriggerEvent('cnbt-inventory:server:itemUsed', src, item.name, item, data.grid)
+    TriggerEvent('cnbt-inventory:server:itemUsed', src, item.name, item, gridLabel)
 
     -- Weapon equip: if item has a weaponHash, trigger client equip (toggle)
     if def.weaponHash then
         local weaponAttachments = item.metadata and item.metadata.attachments or nil
         TriggerClientEvent('cnbt-inventory:client:equipWeapon', src, def.weaponHash, item.name, weaponAttachments)
         -- Weapons are NOT consumed on use, so skip the consumable logic
-        TriggerClientEvent('cnbt-inventory:client:useSuccess', src, data)
-        return
+        TriggerClientEvent('cnbt-inventory:client:useSuccess', src, { grid = gridLabel, itemIndex = itemIndex })
+        return true
     end
 
     -- Apply item effects (esx_status, custom exports, events)
@@ -576,7 +573,132 @@ AddEventHandler('cnbt-inventory:server:useItem', function(data)
         markDirty(identifier, 'player')
     end
 
-    TriggerClientEvent('cnbt-inventory:client:useSuccess', src, data)
+    TriggerClientEvent('cnbt-inventory:client:useSuccess', src, { grid = gridLabel, itemIndex = itemIndex })
+    return true
+end
+
+RegisterNetEvent('cnbt-inventory:server:useItem')
+AddEventHandler('cnbt-inventory:server:useItem', function(data)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    local gridLabel = (data.grid == 'backpack') and 'backpack' or 'player'
+    applyItemUse(src, identifier, gridLabel, data.itemIndex)
+end)
+
+-- Use an item directly from a hotbar slot (no inventory UI required).
+-- Looks up the slot assignment in the player's saved hotbar, resolves it to
+-- an item in the player inventory or backpack, then runs the normal use flow.
+RegisterNetEvent('cnbt-inventory:server:useHotbarSlot')
+AddEventHandler('cnbt-inventory:server:useHotbarSlot', function(slotNum)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    slotNum = tonumber(slotNum)
+    if not slotNum then return end
+
+    local inv = loadInventory(identifier, 'player')
+    if not inv.hotbar then return end
+
+    -- Find the hotbar assignment for this slot
+    local assignment = nil
+    for _, h in ipairs(inv.hotbar) do
+        if h and h.slot == slotNum then
+            assignment = h
+            break
+        end
+    end
+    if not assignment or not assignment.itemRef or not assignment.itemRef.name then return end
+
+    local itemName = assignment.itemRef.name
+    local preferredGrid = assignment.itemRef.grid or 'player'
+
+    -- Try the preferred grid first, then fall back to the other grid
+    local function findItem(gridItems)
+        if not gridItems then return nil end
+        for i, it in ipairs(gridItems) do
+            if it.name == itemName then return i end
+        end
+        return nil
+    end
+
+    local idx, gridLabel
+    if preferredGrid == 'backpack' and inv.backpack and inv.backpack.items then
+        idx = findItem(inv.backpack.items)
+        if idx then gridLabel = 'backpack' end
+    end
+    if not idx then
+        idx = findItem(inv.items)
+        if idx then gridLabel = 'player' end
+    end
+    if not idx and inv.backpack and inv.backpack.items then
+        idx = findItem(inv.backpack.items)
+        if idx then gridLabel = 'backpack' end
+    end
+
+    if not idx then
+        -- Item no longer exists anywhere - clean the dead hotbar slot
+        for i = #inv.hotbar, 1, -1 do
+            if inv.hotbar[i] and inv.hotbar[i].slot == slotNum then
+                table.remove(inv.hotbar, i)
+            end
+        end
+        markDirty(identifier, 'player')
+        return
+    end
+
+    applyItemUse(src, identifier, gridLabel, idx)
+end)
+
+-- Lightweight hotbar preview: send the player's hotbar assignments + minimal
+-- item metadata so the NUI can render a standalone hotbar overlay without
+-- opening the full inventory panels.
+RegisterNetEvent('cnbt-inventory:server:requestHotbarPreview')
+AddEventHandler('cnbt-inventory:server:requestHotbarPreview', function()
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    local inv = loadInventory(identifier, 'player')
+
+    -- Count totals for each item name across player + backpack, so the
+    -- preview can show stack counts next to hotbar icons.
+    local itemCounts = {}
+    for _, it in ipairs(inv.items or {}) do
+        itemCounts[it.name] = (itemCounts[it.name] or 0) + (it.count or 1)
+    end
+    if inv.backpack and inv.backpack.items then
+        for _, it in ipairs(inv.backpack.items) do
+            itemCounts[it.name] = (itemCounts[it.name] or 0) + (it.count or 1)
+        end
+    end
+
+    -- Only send item defs for items that are actually referenced in the hotbar
+    local neededDefs = {}
+    for _, h in ipairs(inv.hotbar or {}) do
+        if h and h.itemRef and h.itemRef.name then
+            local def = Items[h.itemRef.name]
+            if def then
+                neededDefs[h.itemRef.name] = {
+                    label = def.label,
+                    image = def.image,
+                }
+            end
+        end
+    end
+
+    TriggerClientEvent('cnbt-inventory:client:hotbarPreview', src, {
+        hotbar = inv.hotbar or {},
+        itemDefs = neededDefs,
+        itemCounts = itemCounts,
+        slots = Config.HotbarSlots,
+        colors = Config.Colors,
+    })
 end)
 
 -- Equip/unequip backpack

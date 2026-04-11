@@ -94,6 +94,12 @@ window.CNBT = (function () {
             case 'useHotbar':
                 useHotbarSlot(msg.slot);
                 break;
+            case 'showHotbarPreview':
+                showHotbarPreview(msg.data);
+                break;
+            case 'hideHotbarPreview':
+                hideHotbarPreview();
+                break;
             // Gunsmith messages
             case 'openGunsmith':
             case 'closeGunsmith':
@@ -172,7 +178,7 @@ window.CNBT = (function () {
         const container = document.getElementById('inventory-container');
         // Cancel any pending close animation
         if (closeAnimTimeout) { clearTimeout(closeAnimTimeout); closeAnimTimeout = null; }
-        container.classList.remove('hidden', 'slide-out');
+        container.classList.remove('hidden', 'slide-out', 'hotbar-only');
         container.classList.add('slide-in');
 
         // Setup player grid
@@ -396,7 +402,7 @@ window.CNBT = (function () {
         }
     }
 
-    function renderHotbar() {
+    function renderHotbar(itemCounts) {
         const slots = document.querySelectorAll('.hotbar-slot');
         for (const slot of slots) {
             const slotNum = parseInt(slot.dataset.slot);
@@ -421,8 +427,55 @@ window.CNBT = (function () {
                         slot.appendChild(ph);
                     };
                     slot.appendChild(img);
+
+                    // Count badge (preview mode only - itemCounts provided)
+                    if (itemCounts) {
+                        const n = itemCounts[assignment.itemRef.name];
+                        if (n && n > 1) {
+                            const count = document.createElement('span');
+                            count.className = 'hotbar-count';
+                            count.textContent = 'x' + n;
+                            slot.appendChild(count);
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    // ============================================
+    // HOTBAR PREVIEW (standalone, read-only overlay)
+    // ============================================
+
+    function showHotbarPreview(data) {
+        if (!data) return;
+
+        hotbarSlotCount = data.slots || 5;
+        // Merge preview-supplied item defs (only the entries we need to render)
+        if (data.itemDefs) {
+            for (const name in data.itemDefs) {
+                if (!itemDefs[name]) itemDefs[name] = data.itemDefs[name];
+            }
+        }
+        hotbar = data.hotbar || [];
+        applyColorPalette(data.colors);
+
+        const container = document.getElementById('inventory-container');
+        // Cancel any pending close animation from a prior full-inv close
+        if (closeAnimTimeout) { clearTimeout(closeAnimTimeout); closeAnimTimeout = null; }
+        container.classList.remove('hidden', 'slide-in', 'slide-out');
+        container.classList.add('hotbar-only');
+
+        buildHotbar();
+        renderHotbar(data.itemCounts);
+    }
+
+    function hideHotbarPreview() {
+        const container = document.getElementById('inventory-container');
+        container.classList.remove('hotbar-only');
+        // Only fully hide if the full inventory isn't currently shown
+        if (!container.classList.contains('slide-in')) {
+            container.classList.add('hidden');
         }
     }
 

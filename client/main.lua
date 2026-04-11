@@ -3,6 +3,7 @@ local ESX = exports['es_extended']:getSharedObject()
 local isOpen = false
 local currentExternal = nil
 local lastUseTime = 0
+local hotbarPreviewShown = false
 
 -- ============================================
 -- DISABLE GTA WEAPON WHEEL + CONTROL MANAGEMENT
@@ -83,6 +84,12 @@ end
 RegisterNetEvent('cnbt-inventory:client:openInventory')
 AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, externalInv)
     if isOpen then return end
+    -- If the read-only hotbar preview is showing, dismiss it first so the
+    -- full inventory can take over.
+    if hotbarPreviewShown then
+        hotbarPreviewShown = false
+        SendNUIMessage({ type = 'hideHotbarPreview' })
+    end
     isOpen = true
     currentExternal = externalInv
 
@@ -153,6 +160,10 @@ RegisterCommand('-inventory', function() end, false)
 RegisterKeyMapping('+inventory', 'Open/Close Inventory', 'keyboard', 'TAB')
 
 -- Hotbar keys 1-5: work both when inventory is open and closed
+-- When the inventory UI is OPEN, the NUI has the live hotbar state so we route
+-- through it for visual feedback. When the UI is CLOSED, we call the server
+-- directly - the server has the authoritative hotbar saved in the DB so it can
+-- resolve the slot to an item and run the normal use flow without needing NUI.
 for i = 1, Config.HotbarSlots do
     RegisterCommand('hotbar_' .. i, function()
         local now = GetGameTimer()
@@ -160,17 +171,42 @@ for i = 1, Config.HotbarSlots do
         lastUseTime = now
 
         if isOpen then
-            -- When inventory is open, let NUI handle it (for visual feedback)
             SendNUIMessage({ type = 'useHotbar', slot = i })
         else
-            -- When inventory is closed, trigger server use directly via NUI callback
-            -- The hotbar data is cached client-side in NUI, so we send a message
-            -- that NUI will process and call back to Lua
-            SendNUIMessage({ type = 'useHotbar', slot = i })
+            TriggerServerEvent('cnbt-inventory:server:useHotbarSlot', i)
         end
     end, false)
     RegisterKeyMapping('hotbar_' .. i, 'Hotbar Slot ' .. i, 'keyboard', tostring(i))
 end
+
+-- Hotbar preview: press H to toggle a standalone, read-only hotbar overlay so
+-- the player can peek at what's assigned to slots 1-5 without opening the
+-- full inventory (and without losing mouse/game focus).
+local function hideHotbarPreview()
+    if not hotbarPreviewShown then return end
+    hotbarPreviewShown = false
+    SendNUIMessage({ type = 'hideHotbarPreview' })
+end
+
+RegisterCommand('+hotbar_view', function()
+    -- If the full inventory is open, the hotbar is already visible - no-op.
+    if isOpen then return end
+    if hotbarPreviewShown then
+        hideHotbarPreview()
+    else
+        hotbarPreviewShown = true
+        TriggerServerEvent('cnbt-inventory:server:requestHotbarPreview')
+    end
+end, false)
+RegisterCommand('-hotbar_view', function() end, false)
+RegisterKeyMapping('+hotbar_view', 'Show Hotbar Preview', 'keyboard', 'H')
+
+RegisterNetEvent('cnbt-inventory:client:hotbarPreview')
+AddEventHandler('cnbt-inventory:client:hotbarPreview', function(data)
+    -- If the full inventory opened in the meantime, skip the preview.
+    if isOpen or not hotbarPreviewShown then return end
+    SendNUIMessage({ type = 'showHotbarPreview', data = data })
+end)
 
 -- ============================================
 -- NUI CALLBACKS
