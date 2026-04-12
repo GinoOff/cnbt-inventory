@@ -144,13 +144,37 @@ const DragSystem = (function () {
         if (dropResult) {
             handleDrop(dropResult);
         } else {
-            // Check if dropped on backpack slot
-            const bpSlot = document.getElementById('backpack-slot');
-            if (bpSlot) {
+            // Check if dropped on backpack equipment slot (utility panel)
+            const bpSlot = document.getElementById('equip-backpack');
+            if (bpSlot && !bpSlot.closest('.hidden')) {
                 const bpRect = bpSlot.getBoundingClientRect();
                 if (e.clientX >= bpRect.left && e.clientX <= bpRect.right &&
                     e.clientY >= bpRect.top && e.clientY <= bpRect.bottom) {
                     handleBackpackEquip();
+                    finishDrag();
+                    return;
+                }
+            }
+
+            // Check if dropped on armor equipment slot (utility panel)
+            const armorSlot = document.getElementById('equip-armor');
+            if (armorSlot && !armorSlot.closest('.hidden')) {
+                const armorRect = armorSlot.getBoundingClientRect();
+                if (e.clientX >= armorRect.left && e.clientX <= armorRect.right &&
+                    e.clientY >= armorRect.top && e.clientY <= armorRect.bottom) {
+                    handleEquipSlot('armor');
+                    finishDrag();
+                    return;
+                }
+            }
+
+            // Check if dropped on parachute equipment slot (utility panel)
+            const paraSlot = document.getElementById('equip-parachute');
+            if (paraSlot && !paraSlot.closest('.hidden')) {
+                const paraRect = paraSlot.getBoundingClientRect();
+                if (e.clientX >= paraRect.left && e.clientX <= paraRect.right &&
+                    e.clientY >= paraRect.top && e.clientY <= paraRect.bottom) {
+                    handleEquipSlot('parachute');
                     finishDrag();
                     return;
                 }
@@ -303,6 +327,37 @@ const DragSystem = (function () {
 
                 grid.highlightCells(gCoords.x, gCoords.y, size.w, size.h, canPlace);
                 break;
+            }
+        }
+
+        // Equipment slot drag-over highlights
+        highlightEquipSlots();
+    }
+
+    function highlightEquipSlots() {
+        const def = window.CNBT.itemDefs[dragItem.item.name];
+        if (!def) return;
+
+        // Map categories to slot IDs
+        const slotMap = {
+            backpack:  'equip-backpack',
+            armor:     'equip-armor',
+            parachute: 'equip-parachute',
+        };
+
+        for (const [cat, slotId] of Object.entries(slotMap)) {
+            const el = document.getElementById(slotId);
+            if (!el || el.closest('.hidden')) {
+                continue;
+            }
+            const rect = el.getBoundingClientRect();
+            const over = mouseX >= rect.left && mouseX <= rect.right &&
+                         mouseY >= rect.top && mouseY <= rect.bottom;
+
+            if (over && def.category === cat) {
+                el.classList.add('drag-over');
+            } else {
+                el.classList.remove('drag-over');
             }
         }
     }
@@ -481,6 +536,21 @@ const DragSystem = (function () {
         });
     }
 
+    function handleEquipSlot(slotType) {
+        const def = window.CNBT.itemDefs[dragItem.item.name];
+        if (!def) return;
+
+        // Validate item matches slot type
+        if (slotType === 'armor' && def.category !== 'armor') return;
+        if (slotType === 'parachute' && def.category !== 'parachute') return;
+
+        window.CNBT.nuiCallback('equipSlot', {
+            slot: slotType,
+            itemIndex: dragItem.index + 1,
+            grid: dragItem.gridId,
+        });
+    }
+
     function revertDrag() {
         // Unfade original element
         if (dragItem && dragItem.grid) {
@@ -499,6 +569,11 @@ const DragSystem = (function () {
                 item.el.classList.remove('dragging');
             }
         }
+
+        // Clear equipment slot highlights
+        document.querySelectorAll('.equip-slot.drag-over').forEach(function (el) {
+            el.classList.remove('drag-over');
+        });
 
         isDragging = false;
         dragItem = null;

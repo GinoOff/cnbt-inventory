@@ -4,6 +4,7 @@ local isOpen = false
 local currentExternal = nil
 local lastUseTime = 0
 local hotbarPreviewShown = false
+local savedClothingState = {} -- saved clothing state for toggle restore
 
 -- ============================================
 -- DISABLE GTA WEAPON WHEEL + CONTROL MANAGEMENT
@@ -304,6 +305,51 @@ RegisterNUICallback('sortInventory', function(data, cb)
     cb('ok')
 end)
 
+-- Clothing toggle from the utility panel SVG body figure
+RegisterNUICallback('toggleClothing', function(data, cb)
+    local component = data.component
+    local visible = data.visible
+    if not component then cb('ok') return end
+
+    local ped = PlayerPedId()
+    local mapping = Config.ClothingComponents and Config.ClothingComponents[component]
+    if not mapping then cb('ok') return end
+
+    if visible then
+        -- Restore saved clothing variation
+        local saved = savedClothingState[component]
+        if saved then
+            if mapping.type == 'component' then
+                SetPedComponentVariation(ped, mapping.id, saved.drawable, saved.texture, 0)
+            elseif mapping.type == 'prop' then
+                SetPedPropIndex(ped, mapping.id, saved.drawable, saved.texture, true)
+            end
+        end
+    else
+        -- Save current and set to default (hidden)
+        if mapping.type == 'component' then
+            savedClothingState[component] = {
+                drawable = GetPedDrawableVariation(ped, mapping.id),
+                texture = GetPedTextureVariation(ped, mapping.id),
+            }
+            SetPedComponentVariation(ped, mapping.id, mapping.default or 0, 0, 0)
+        elseif mapping.type == 'prop' then
+            savedClothingState[component] = {
+                drawable = GetPedPropIndex(ped, mapping.id),
+                texture = GetPedPropTextureIndex(ped, mapping.id),
+            }
+            ClearPedProp(ped, mapping.id)
+        end
+    end
+    cb('ok')
+end)
+
+-- Equipment slot (armor / parachute) from utility panel
+RegisterNUICallback('equipSlot', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:equipSlot', data)
+    cb('ok')
+end)
+
 RegisterNUICallback('useHotbarItem', function(data, cb)
     local now = GetGameTimer()
     if now - lastUseTime < Config.UseCooldown then
@@ -337,6 +383,24 @@ end)
 RegisterNetEvent('cnbt-inventory:client:stackSuccess')
 AddEventHandler('cnbt-inventory:client:stackSuccess', function(data)
     SendNUIMessage({ type = 'stackSuccess', data = data })
+end)
+
+-- Armor/parachute equip from utility panel
+RegisterNetEvent('cnbt-inventory:client:applyArmor')
+AddEventHandler('cnbt-inventory:client:applyArmor', function(item)
+    local ped = PlayerPedId()
+    SetPedArmour(ped, 100)
+end)
+
+RegisterNetEvent('cnbt-inventory:client:applyParachute')
+AddEventHandler('cnbt-inventory:client:applyParachute', function(item)
+    local ped = PlayerPedId()
+    GiveWeaponToPed(ped, GetHashKey('GADGET_PARACHUTE'), 1, false, false)
+end)
+
+RegisterNetEvent('cnbt-inventory:client:equipSlotSuccess')
+AddEventHandler('cnbt-inventory:client:equipSlotSuccess', function(data)
+    SendNUIMessage({ type = 'equipSlotSuccess', data = data })
 end)
 
 RegisterNetEvent('cnbt-inventory:client:splitSuccess')

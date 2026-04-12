@@ -875,6 +875,49 @@ AddEventHandler('cnbt-inventory:server:unequipBackpack', function()
     TriggerClientEvent('cnbt-inventory:client:backpackUnequipped', src, inv.items)
 end)
 
+-- Equip armor / parachute slot
+RegisterNetEvent('cnbt-inventory:server:equipSlot')
+AddEventHandler('cnbt-inventory:server:equipSlot', function(data)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    local slot = data.slot
+    if slot ~= 'armor' and slot ~= 'parachute' then return end
+
+    local inv = loadInventory(identifier, 'player')
+    local itemIndex = data.itemIndex
+    if not inv.items[itemIndex] then
+        TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
+        return
+    end
+
+    local item = inv.items[itemIndex]
+    local def = getItemDef(item.name)
+    if not def or def.category ~= slot then
+        TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
+        return
+    end
+
+    -- Remove from inventory
+    table.remove(inv.items, itemIndex)
+    markDirty(identifier, 'player')
+
+    -- Apply effect
+    if slot == 'armor' then
+        TriggerClientEvent('cnbt-inventory:client:applyArmor', src, item)
+    elseif slot == 'parachute' then
+        TriggerClientEvent('cnbt-inventory:client:applyParachute', src, item)
+    end
+
+    TriggerClientEvent('cnbt-inventory:client:equipSlotSuccess', src, {
+        slot = slot,
+        item = item,
+        updatedItems = inv.items,
+    })
+end)
+
 -- Update hotbar
 RegisterNetEvent('cnbt-inventory:server:updateHotbar')
 AddEventHandler('cnbt-inventory:server:updateHotbar', function(hotbar)

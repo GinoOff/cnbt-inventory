@@ -282,3 +282,26 @@ Config.AttachmentSlotLabels = {
     grip       = 'Grip',
     magazine   = 'Magazine',
 }
+
+-- ============================================
+-- CLOTHING COMPONENTS (utility panel body SVG toggle)
+-- ============================================
+--
+-- Maps each clickable body zone to a GTA V ped component/prop.
+--   type = 'component' uses SetPedComponentVariation / GetPedDrawableVariation
+--   type = 'prop'      uses SetPedPropIndex / ClearPedProp
+--   id   = GTA component/prop index
+--   default = drawable index to set when "removing" (usually 0)
+
+Config.ClothingComponents = {
+    hat        = { type = 'prop',      id = 0 },                  -- hats/helmets
+    glasses    = { type = 'prop',      id = 1 },                  -- glasses
+    ears       = { type = 'prop',      id = 2 },                  -- earpieces
+    mask       = { type = 'component', id = 1,  default = 0 },    -- masks
+    torso      = { type = 'component', id = 11, default = 15 },   -- jacket/top
+    undershirt = { type = 'component', id = 8,  default = 15 },   -- undershirt
+    chain      = { type = 'component', id = 7,  default = 0 },    -- necklaces/ties
+    gloves     = { type = 'component', id = 3,  default = 15 },   -- torso/gloves
+    legs       = { type = 'component', id = 4,  default = 21 },   -- pants
+    shoes      = { type = 'component', id = 6,  default = 34 },   -- shoes
+}

@@ -8,14 +8,71 @@
 </head>
 <body>
     <div id="inventory-container" class="hidden">
-        <!-- Top bar: hotbar only (sort/action buttons moved into panel header) -->
+        <!-- Top bar: hotbar + utility toggle -->
         <div id="top-bar">
             <div id="hotbar">
                 <!-- Filled dynamically -->
             </div>
+            <button id="utility-toggle-btn" class="panel-action-btn utility-toggle">Utilit&agrave;</button>
         </div>
 
         <div id="inventory-panels">
+            <!-- Utility panel (left side, toggled by Utilità button) -->
+            <div id="utility-panel" class="inv-panel hidden">
+                <div class="panel-header">
+                    <div class="panel-title-group">
+                        <span class="panel-title">Utilit&agrave;</span>
+                        <span class="panel-title-chevron">&#9662;</span>
+                    </div>
+                </div>
+
+                <div id="utility-body">
+                    <!-- Left column: equipment slots -->
+                    <div id="utility-left-slots">
+                        <div class="equip-slot-wrap">
+                            <span class="equip-slot-label">ZAINO</span>
+                            <div id="equip-backpack" class="equip-slot" data-slot="backpack">
+                                <span class="equip-slot-placeholder"></span>
+                            </div>
+                        </div>
+                        <div class="equip-slot-wrap">
+                            <span class="equip-slot-label">ARMATURA</span>
+                            <div id="equip-armor" class="equip-slot" data-slot="armor">
+                                <span class="equip-slot-placeholder"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Center: interactive SVG body -->
+                    <div id="utility-body-figure">
+                        <div id="body-svg-container">
+                            <!-- Filled by utility.js -->
+                        </div>
+                    </div>
+
+                    <!-- Right column: equipment slots -->
+                    <div id="utility-right-slots">
+                        <div class="equip-slot-wrap">
+                            <span class="equip-slot-label">PARACADUTE</span>
+                            <div id="equip-parachute" class="equip-slot" data-slot="parachute">
+                                <span class="equip-slot-placeholder"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom: backpack grid (moved from player panel) -->
+                <div id="utility-backpack-grid" class="hidden">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <span class="panel-title" id="backpack-label">Backpack</span>
+                        </div>
+                        <span id="backpack-weight" class="weight-info">0 / 0 g</span>
+                    </div>
+                    <div id="backpack-grid" class="grid-container"></div>
+                </div>
+            </div>
+
             <!-- Player inventory panel -->
             <div id="player-panel" class="inv-panel">
                 <div class="panel-header">
@@ -32,28 +89,7 @@
                 </div>
                 <div id="player-grid" class="grid-container"></div>
 
-                <!-- Backpack section -->
-                <div id="backpack-section">
-                    <div id="backpack-slot-container">
-                        <div class="panel-header">
-                            <div class="panel-title-group">
-                                <span class="panel-title">Backpack</span>
-                            </div>
-                        </div>
-                        <div id="backpack-slot" class="backpack-drop-zone">
-                            <span class="empty-text">Drag backpack here</span>
-                        </div>
-                    </div>
-                    <div id="backpack-grid-container" class="hidden">
-                        <div class="panel-header">
-                            <div class="panel-title-group">
-                                <span class="panel-title" id="backpack-label">Backpack</span>
-                            </div>
-                            <span id="backpack-weight" class="weight-info">0 / 0 g</span>
-                        </div>
-                        <div id="backpack-grid" class="grid-container"></div>
-                    </div>
-                </div>
+                <!-- Backpack section removed - now in utility panel -->
             </div>
 
             <!-- External inventory panel (stash/vehicle/drop) -->
@@ -220,6 +256,7 @@
     <script src="js/drag.js"></script>
     <script src="js/gunsmith.js"></script>
     <script src="js/stashes.js"></script>
+    <script src="js/utility.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

@@ -103,6 +103,16 @@ body {
     animation: slideOutRight var(--slide-duration) cubic-bezier(0.7, 0, 0.84, 0) forwards;
 }
 
+/* Utility panel entrance - hidden by default, shown via toggle */
+#utility-panel {
+    transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+#utility-panel.hidden {
+    opacity: 0;
+    transform: translateX(-20px);
+    pointer-events: none !important;
+}
+
 @keyframes slideInRight {
     from {
         transform: translate3d(120%, 0, 0);
@@ -719,82 +729,106 @@ body {
 }
 
 /* ============================================
-   BACKPACK (tactical gear module)
+   UTILITY PANEL (character/equipment)
    ============================================ */
 
-#backpack-section {
-    margin: 0 18px 18px;
+#utility-panel {
+    min-width: 320px;
+    max-width: 340px;
+}
+
+#utility-panel .panel-header {
+    padding: 8px 16px;
+}
+
+#utility-body {
     display: flex;
-    gap: 12px;
+    gap: 8px;
+    padding: 12px 14px;
     align-items: flex-start;
-    padding: 0;
+    justify-content: center;
+    min-height: 340px;
 }
 
-#backpack-slot-container {
-    min-width: 86px;
+/* Equipment slot columns */
+#utility-left-slots,
+#utility-right-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 80px;
+    padding-top: 8px;
 }
 
-#backpack-slot-container .panel-header,
-#backpack-grid-container .panel-header {
-    padding: 6px 12px;
-    background: linear-gradient(180deg,
-        rgba(48, 58, 50, 0.5) 0%,
-        rgba(22, 28, 24, 0.4) 100%);
-    min-height: 0;
-    margin-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+.equip-slot-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
 }
 
-#backpack-slot-container .panel-title,
-#backpack-grid-container .panel-title {
-    font-size: 11px;
-    letter-spacing: 2.5px;
+.equip-slot-label {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
-.backpack-drop-zone {
-    width: calc(var(--cell-size) * 2 + var(--cell-gap));
-    height: calc(var(--cell-size) * 2 + var(--cell-gap));
+.equip-slot {
+    width: 72px;
+    height: 72px;
     background:
         linear-gradient(155deg,
             rgba(42, 52, 44, 0.55) 0%,
             rgba(18, 24, 20, 0.6) 100%);
-    border: 1px dashed rgba(200, 207, 168, 0.3);
-    border-radius: 0;
+    border: 1px dashed rgba(200, 207, 168, 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: border-color var(--transition-fast) ease, background var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
+    transition: border-color var(--transition-fast) ease,
+                background var(--transition-fast) ease,
+                box-shadow var(--transition-fast) ease;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.03),
-        inset 0 22px 40px rgba(0, 0, 0, 0.2);
+        inset 0 16px 30px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
 }
 
-/* Tactical corner brackets */
-.backpack-drop-zone::before,
-.backpack-drop-zone::after {
+/* Corner brackets on equip slots */
+.equip-slot::before,
+.equip-slot::after {
     content: '';
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-color: var(--border-accent);
     pointer-events: none;
     transition: border-color var(--transition-fast) ease;
 }
-.backpack-drop-zone::before {
+.equip-slot::before {
     top: 3px;
     left: 3px;
     border-top: 1px solid;
     border-left: 1px solid;
 }
-.backpack-drop-zone::after {
+.equip-slot::after {
     bottom: 3px;
     right: 3px;
     border-bottom: 1px solid;
     border-right: 1px solid;
 }
 
-.backpack-drop-zone.drag-over {
+.equip-slot:hover {
+    border-color: var(--border-accent);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 0 12px var(--accent-glow);
+}
+
+.equip-slot.drag-over {
     border-color: var(--accent);
     border-style: solid;
     background: var(--bg-cell-hover);
@@ -803,24 +837,19 @@ body {
         0 0 20px var(--accent-glow);
 }
 
-.backpack-drop-zone.drag-over::before,
-.backpack-drop-zone.drag-over::after {
+.equip-slot.drag-over::before,
+.equip-slot.drag-over::after {
     border-color: var(--accent);
 }
 
-.backpack-drop-zone .empty-text {
-    font-family: 'Rajdhani', 'Oswald', sans-serif;
-    font-size: 10px;
-    color: var(--text-dim);
-    text-align: center;
+.equip-slot-placeholder {
+    /* Empty visual indicator - subtle icon could go here */
+    width: 100%;
+    height: 100%;
     pointer-events: none;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    padding: 0 6px;
-    font-weight: 600;
 }
 
-.backpack-drop-zone .backpack-equipped-item {
+.equip-slot-item {
     width: 100%;
     height: 100%;
     display: flex;
@@ -830,22 +859,128 @@ body {
     cursor: grab;
 }
 
-.backpack-drop-zone .backpack-equipped-item img,
-.backpack-drop-zone .backpack-equipped-item .item-image-placeholder {
-    width: 68%;
-    height: 68%;
+.equip-slot-img {
+    width: 52px;
+    height: 52px;
     object-fit: contain;
-    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.65));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+    pointer-events: none;
 }
 
-.backpack-drop-zone .backpack-equipped-item .bp-label {
+.equip-slot-item-label {
     font-family: 'Rajdhani', 'Oswald', sans-serif;
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-primary);
-    margin-top: 4px;
+    margin-top: 2px;
     text-transform: uppercase;
     letter-spacing: 1px;
     font-weight: 600;
+    pointer-events: none;
+}
+
+/* Center body SVG */
+#utility-body-figure {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    max-width: 160px;
+}
+
+#body-svg-container {
+    width: 100%;
+}
+
+.body-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.body-path {
+    filter: drop-shadow(0 0 6px var(--accent-glow));
+    transition: stroke 0.2s ease;
+}
+
+/* Clickable zone overlays */
+.body-zone {
+    fill: rgba(200, 200, 170, 0.04);
+    stroke: none;
+    cursor: pointer;
+    transition: fill 0.15s ease;
+}
+
+.body-zone:hover,
+.body-zone.zone-hover {
+    fill: rgba(200, 200, 170, 0.18);
+    stroke: var(--accent);
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+}
+
+.body-zone.zone-off {
+    fill: rgba(212, 92, 92, 0.2);
+    stroke: var(--danger);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+}
+
+.body-zone.zone-off:hover {
+    fill: rgba(212, 92, 92, 0.35);
+}
+
+/* Utility toggle button */
+.utility-toggle {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: var(--accent);
+    background:
+        linear-gradient(160deg,
+            rgba(42, 52, 44, 0.85) 0%,
+            rgba(22, 28, 24, 0.85) 100%);
+    border: 1px solid var(--border-color);
+    padding: 8px 18px;
+    cursor: pointer;
+    position: relative;
+    transition: border-color var(--transition-fast) ease,
+                box-shadow var(--transition-fast) ease;
+    clip-path: polygon(
+        0 0,
+        calc(100% - 8px) 0,
+        100% 8px,
+        100% 100%,
+        8px 100%,
+        0 calc(100% - 8px)
+    );
+}
+
+.utility-toggle:hover {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+
+/* Backpack grid inside utility panel */
+#utility-backpack-grid {
+    padding: 0 14px 14px;
+}
+
+#utility-backpack-grid .panel-header {
+    padding: 6px 12px;
+    background: linear-gradient(180deg,
+        rgba(48, 58, 50, 0.5) 0%,
+        rgba(22, 28, 24, 0.4) 100%);
+    min-height: 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+#utility-backpack-grid .panel-title {
+    font-size: 11px;
+    letter-spacing: 2.5px;
 }
 
 /* ============================================

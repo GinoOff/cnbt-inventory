@@ -101,6 +101,10 @@ window.CNBT = (function () {
             case 'hideHotbarPreview':
                 hideHotbarPreview();
                 break;
+            // Equipment slot success (armor/parachute)
+            case 'equipSlotSuccess':
+                handleEquipSlotSuccess(msg.data);
+                break;
             // Gunsmith messages
             case 'openGunsmith':
             case 'closeGunsmith':
@@ -225,6 +229,11 @@ window.CNBT = (function () {
             window.Gunsmith.close();
         }
 
+        // Close utility panel
+        if (window.UtilityPanel) {
+            window.UtilityPanel.close();
+        }
+
         const container = document.getElementById('inventory-container');
         // Play slide-out animation, then hide
         container.classList.remove('slide-in');
@@ -285,7 +294,7 @@ window.CNBT = (function () {
         const bpConfig = backpackConfigs[bp.name];
         if (!bpConfig) return;
 
-        const gridContainer = document.getElementById('backpack-grid-container');
+        const gridContainer = document.getElementById('utility-backpack-grid');
         gridContainer.classList.remove('hidden');
 
         const def = itemDefs[bp.name];
@@ -300,56 +309,39 @@ window.CNBT = (function () {
     }
 
     function hideBackpackGrid() {
-        const gridContainer = document.getElementById('backpack-grid-container');
+        const gridContainer = document.getElementById('utility-backpack-grid');
         gridContainer.classList.add('hidden');
         if (backpackGrid) { backpackGrid.destroy(); backpackGrid = null; }
         delete gridMeta['backpack'];
     }
 
     function renderBackpackSlot() {
-        const slot = document.getElementById('backpack-slot');
-        slot.innerHTML = '';
+        // Render inside the utility panel equipment slot
+        const slot = document.getElementById('equip-backpack');
+        if (!slot) return;
 
         if (equippedBackpack) {
             const def = itemDefs[equippedBackpack.name];
-            const equipped = document.createElement('div');
-            equipped.className = 'backpack-equipped-item';
+            window.UtilityPanel.renderEquipSlot('equip-backpack', equippedBackpack, def);
 
-            const img = new Image();
-            img.src = def ? `img/${def.image}` : '';
-            img.onerror = function () {
-                this.style.display = 'none';
-                const ph = document.createElement('div');
-                ph.className = 'item-image-placeholder';
-                ph.textContent = def ? def.label : equippedBackpack.name;
-                equipped.appendChild(ph);
-            };
-            equipped.appendChild(img);
-
-            const label = document.createElement('span');
-            label.className = 'bp-label';
-            label.textContent = def ? def.label : equippedBackpack.name;
-            equipped.appendChild(label);
-
-            // Right click to unequip
-            equipped.addEventListener('contextmenu', function (e) {
+            // Right click on the slot to unequip
+            slot.oncontextmenu = function (e) {
                 e.preventDefault();
                 showContextMenu(e.clientX, e.clientY, [
                     {
-                        label: 'Unequip Backpack',
+                        label: 'Rimuovi Zaino',
                         action: function () {
                             nuiCallback('unequipBackpack', {});
                         },
                     },
                 ]);
-            });
-
-            slot.appendChild(equipped);
+            };
         } else {
-            const empty = document.createElement('span');
-            empty.className = 'empty-text';
-            empty.textContent = 'Drag backpack here';
-            slot.appendChild(empty);
+            slot.innerHTML = '';
+            const ph = document.createElement('span');
+            ph.className = 'equip-slot-placeholder';
+            slot.appendChild(ph);
+            slot.oncontextmenu = null;
         }
     }
 
@@ -371,6 +363,26 @@ window.CNBT = (function () {
         // Reload player grid with updated items (backpack added back to grid)
         if (playerGrid && updatedItems) {
             playerGrid.loadItems(updatedItems);
+        }
+        updateWeightDisplays();
+    }
+
+    // ============================================
+    // EQUIPMENT SLOTS (armor/parachute)
+    // ============================================
+
+    function handleEquipSlotSuccess(data) {
+        // Reload player grid (item removed from inventory)
+        if (playerGrid && data.updatedItems) {
+            playerGrid.loadItems(data.updatedItems);
+        }
+        // Render the equipped item in the slot
+        if (data.item) {
+            const def = itemDefs[data.item.name];
+            const slotId = data.slot === 'armor' ? 'equip-armor' : 'equip-parachute';
+            if (window.UtilityPanel) {
+                window.UtilityPanel.renderEquipSlot(slotId, data.item, def);
+            }
         }
         updateWeightDisplays();
     }

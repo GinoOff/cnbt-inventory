@@ -695,3 +695,33 @@ Items['case_cooler'] = {
     image       = 'case_cooler.png',
     category    = 'case',
 }
+
+-- ============================================
+-- EQUIPMENT (utility panel)
+-- ============================================
+
+Items['armor'] = {
+    label       = 'Giubbotto Antiproiettile',
+    description = 'Armatura protettiva che assorbe i danni',
+    weight      = 3500,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'armor.png',
+    category    = 'armor',
+}
+
+Items['parachute'] = {
+    label       = 'Paracadute',
+    description = 'Paracadute d\'emergenza',
+    weight      = 4000,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'parachute.png',
+    category    = 'parachute',
+}
