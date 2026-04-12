@@ -213,6 +213,46 @@
         </div>
     </div>
 
+    <!-- ============================================
+         STAFF INVENTORY MANAGER (/inventari)
+         ============================================ -->
+    <div id="inventory-manager" class="hidden">
+        <div class="im-panel">
+            <div class="im-header">
+                <div class="im-title-group">
+                    <span class="im-category">STAFF</span>
+                    <h2 class="im-title">GESTIONE INVENTARI</h2>
+                    <div class="im-subtitle">INVENTARI // GIOCATORI</div>
+                </div>
+                <button id="im-close" class="im-close-btn" title="Chiudi">&times;</button>
+            </div>
+
+            <div class="im-body">
+                <!-- Left: inventory list -->
+                <div class="im-col im-col-list">
+                    <div class="im-col-header">
+                        <span>Inventari giocatori</span>
+                        <input type="text" id="im-search" class="im-search" placeholder="Cerca owner...">
+                    </div>
+                    <div id="im-list" class="im-list">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right: detail view (hidden until a row is clicked) -->
+                <div id="im-detail" class="im-col im-col-detail hidden">
+                    <div class="im-col-header">
+                        <span id="im-detail-title">Dettaglio</span>
+                        <button id="im-clear-btn" class="im-action-btn im-btn-danger">Svuota Inventario</button>
+                    </div>
+                    <div id="im-detail-body" class="im-detail-body">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Gunsmith full-screen tactical overlay -->
     <div id="gunsmith-overlay" class="hidden">
         <!-- Smooth radial vignette darkening the edges (no hard borders) -->
@@ -256,6 +296,7 @@
     <script src="js/drag.js"></script>
     <script src="js/gunsmith.js"></script>
     <script src="js/stashes.js"></script>
+    <script src="js/inventories.js"></script>
     <script src="js/utility.js"></script>
     <script src="js/app.js"></script>
 </body>

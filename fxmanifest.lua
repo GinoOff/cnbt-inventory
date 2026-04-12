@@ -21,6 +21,7 @@ client_scripts {
     'client/drops.lua',
     'client/gunsmith.lua',
     'client/stashes.lua',
+    'client/inventories.lua',
 }
 
 server_scripts {
@@ -28,6 +29,7 @@ server_scripts {
     'server/api.lua',
     'server/drops.lua',
     'server/stashes.lua',
+    'server/inventories.lua',
 }
 
 ui_page 'html/index.html'
@@ -39,6 +41,8 @@ files {
     'html/js/drag.js',
     'html/js/gunsmith.js',
     'html/js/stashes.js',
+    'html/js/utility.js',
+    'html/js/inventories.js',
     'html/js/app.js',
     'html/img/*.png',
 }
