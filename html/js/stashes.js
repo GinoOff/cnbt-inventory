@@ -96,11 +96,22 @@
             delBtn.className = 'sm-action-btn sm-btn-danger';
             delBtn.textContent = 'Elimina';
             delBtn.addEventListener('click', function () {
-                if (!confirm('Eliminare il deposito "' + (s.label || s.id) + '"?')) return;
-                cb('deleteStash', { id: s.id });
-                // Optimistic remove
-                row.remove();
-                if (!listEl.children.length) renderList([]);
+                if (delBtn.dataset.confirming === '1') {
+                    // Second click: actually delete
+                    cb('deleteStash', { id: s.id });
+                    row.remove();
+                    if (!listEl.children.length) renderList([]);
+                } else {
+                    // First click: ask for confirmation (resets after 3s)
+                    delBtn.dataset.confirming = '1';
+                    delBtn.textContent = 'Conferma?';
+                    delBtn._resetTimer = setTimeout(function () {
+                        if (delBtn.parentNode) {
+                            delBtn.dataset.confirming = '';
+                            delBtn.textContent = 'Elimina';
+                        }
+                    }, 3000);
+                }
             });
             actions.appendChild(delBtn);
 

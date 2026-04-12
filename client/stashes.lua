@@ -159,29 +159,227 @@ RegisterNUICallback('deleteStash', function(data, cb)
 end)
 
 -- ============================================
--- PLACEMENT EDITOR (Sims-style freecam + object editor)
+-- PLACEMENT EDITOR (freecam + 3D gizmo)
 -- ============================================
 --
 -- Flow:
---   1. NUI sends {type='createStash', ...form data} via nuiCallback startPlacement.
---   2. We close NUI focus, spawn the prop in front of the player and enter
---      edit mode. A scripted freecam replaces the gameplay camera.
---   3. The player uses WASD + Space/Ctrl + mouse to fly the camera, arrow keys
---      to fine-tune the prop X/Y, PgUp/PgDn for Z, Q/E to rotate Z.
---   4. Enter confirms (save via server event) - Backspace cancels.
+--   1. NUI sends form data via startStashPlacement callback.
+--   2. We close NUI focus, spawn the prop and enter edit mode with a freecam.
+--   3. WASD + mouse fly the camera. A 3D gizmo (axis arrows + plane handles)
+--      lets the user click-drag to translate the prop. Arrow keys, PgUp/PgDn,
+--      Q/E still work for keyboard fine-tuning. Enter confirms, Backspace cancels.
 
 local placementActive = false
 local placementCam = nil
 local placementProp = nil
-local pendingCreate = nil -- the form data received from NUI
+local pendingCreate = nil
 
 -- Freecam state
 local camX, camY, camZ = 0.0, 0.0, 0.0
 local camYaw, camPitch = 0.0, 0.0
 
+-- Gizmo configuration
+local GIZMO_LEN        = 1.2     -- arrow length (world units)
+local GIZMO_HEAD_LEN   = 0.14    -- arrowhead cone length
+local GIZMO_HEAD_W     = 0.07    -- arrowhead cone half-width
+local GIZMO_PLANE_OFF  = 0.35    -- plane-handle offset from centre
+local GIZMO_PLANE_SZ   = 0.18    -- plane-handle square size
+local GIZMO_HIT_RADIUS = 0.04    -- screen-space hover threshold (0-1)
+local GIZMO_DRAG_SENS  = 15.0    -- base sensitivity for mouse drag
+
+-- Gizmo runtime state
+local gizmoDragging = false
+local gizmoTarget   = nil  -- 'x'|'y'|'z'|'xy'|'xz'|'yz'
+local gizmoHover    = nil
+
+-- Axis definitions: direction + colour (Red=X, Blue=Y, Green=Z)
+local GIZMO_AXES = {
+    { id = 'x', dx = 1.0, dy = 0.0, dz = 0.0, r = 230, g = 60,  b = 60  },
+    { id = 'y', dx = 0.0, dy = 1.0, dz = 0.0, r = 60,  g = 60,  b = 230 },
+    { id = 'z', dx = 0.0, dy = 0.0, dz = 1.0, r = 60,  g = 230, b = 60  },
+}
+
+-- Plane-handle definitions (pairs of axes)
+local GIZMO_PLANES = {
+    { id = 'xy', i1 = 1, i2 = 2, r = 230, g = 230, b = 60  },
+    { id = 'xz', i1 = 1, i2 = 3, r = 230, g = 60,  b = 230 },
+    { id = 'yz', i1 = 2, i2 = 3, r = 60,  g = 230, b = 230 },
+}
+
+-- ============================================
+-- GIZMO HELPERS
+-- ============================================
+
+-- Build two perpendicular unit vectors for a given axis direction.
+local function gizmoPerp(dx, dy, dz)
+    local ux, uy, uz
+    if math.abs(dz) < 0.9 then
+        ux, uy, uz = -dy, dx, 0.0
+    else
+        ux, uy, uz = 0.0, -dz, dy
+    end
+    local ulen = math.sqrt(ux * ux + uy * uy + uz * uz)
+    if ulen > 0.001 then ux, uy, uz = ux / ulen, uy / ulen, uz / ulen end
+    local vx = dy * uz - dz * uy
+    local vy = dz * ux - dx * uz
+    local vz = dx * uy - dy * ux
+    return ux, uy, uz, vx, vy, vz
+end
+
+-- Draw the full gizmo (axes + arrowheads + plane handles) centred at (ox,oy,oz).
+local function drawGizmo(ox, oy, oz)
+    for _, ax in ipairs(GIZMO_AXES) do
+        local tipX = ox + ax.dx * GIZMO_LEN
+        local tipY = oy + ax.dy * GIZMO_LEN
+        local tipZ = oz + ax.dz * GIZMO_LEN
+        local r, g, b, a = ax.r, ax.g, ax.b, 200
+        if gizmoHover == ax.id or gizmoTarget == ax.id then
+            r = math.min(255, r + 60)
+            g = math.min(255, g + 60)
+            b = math.min(255, b + 60)
+            a = 255
+        end
+        -- Shaft line
+        DrawLine(ox, oy, oz, tipX, tipY, tipZ, r, g, b, a)
+        -- Arrowhead (4-fin filled pyramid, double-sided)
+        local ux, uy, uz, vx, vy, vz = gizmoPerp(ax.dx, ax.dy, ax.dz)
+        local bx = tipX - ax.dx * GIZMO_HEAD_LEN
+        local by = tipY - ax.dy * GIZMO_HEAD_LEN
+        local bz = tipZ - ax.dz * GIZMO_HEAD_LEN
+        local w = GIZMO_HEAD_W
+        local p1x, p1y, p1z = bx + ux * w, by + uy * w, bz + uz * w
+        local p2x, p2y, p2z = bx - ux * w, by - uy * w, bz - uz * w
+        local p3x, p3y, p3z = bx + vx * w, by + vy * w, bz + vz * w
+        local p4x, p4y, p4z = bx - vx * w, by - vy * w, bz - vz * w
+        DrawPoly(tipX, tipY, tipZ, p1x, p1y, p1z, p3x, p3y, p3z, r, g, b, a)
+        DrawPoly(tipX, tipY, tipZ, p3x, p3y, p3z, p1x, p1y, p1z, r, g, b, a)
+        DrawPoly(tipX, tipY, tipZ, p3x, p3y, p3z, p2x, p2y, p2z, r, g, b, a)
+        DrawPoly(tipX, tipY, tipZ, p2x, p2y, p2z, p3x, p3y, p3z, r, g, b, a)
+        DrawPoly(tipX, tipY, tipZ, p2x, p2y, p2z, p4x, p4y, p4z, r, g, b, a)
+        DrawPoly(tipX, tipY, tipZ, p4x, p4y, p4z, p2x, p2y, p2z, r, g, b, a)
+        DrawPoly(tipX, tipY, tipZ, p4x, p4y, p4z, p1x, p1y, p1z, r, g, b, a)
+        DrawPoly(tipX, tipY, tipZ, p1x, p1y, p1z, p4x, p4y, p4z, r, g, b, a)
+    end
+
+    -- Plane handles (coloured filled squares between pairs of axes)
+    local plH = GIZMO_PLANE_SZ / 2
+    for _, pl in ipairs(GIZMO_PLANES) do
+        local a1 = GIZMO_AXES[pl.i1]
+        local a2 = GIZMO_AXES[pl.i2]
+        local cx = ox + (a1.dx + a2.dx) * GIZMO_PLANE_OFF
+        local cy = oy + (a1.dy + a2.dy) * GIZMO_PLANE_OFF
+        local cz = oz + (a1.dz + a2.dz) * GIZMO_PLANE_OFF
+        local r, g, b, a = pl.r, pl.g, pl.b, 100
+        if gizmoHover == pl.id or gizmoTarget == pl.id then
+            r = math.min(255, r + 40)
+            g = math.min(255, g + 40)
+            b = math.min(255, b + 40)
+            a = 180
+        end
+        local q1x, q1y, q1z = cx + a1.dx*plH + a2.dx*plH, cy + a1.dy*plH + a2.dy*plH, cz + a1.dz*plH + a2.dz*plH
+        local q2x, q2y, q2z = cx + a1.dx*plH - a2.dx*plH, cy + a1.dy*plH - a2.dy*plH, cz + a1.dz*plH - a2.dz*plH
+        local q3x, q3y, q3z = cx - a1.dx*plH - a2.dx*plH, cy - a1.dy*plH - a2.dy*plH, cz - a1.dz*plH - a2.dz*plH
+        local q4x, q4y, q4z = cx - a1.dx*plH + a2.dx*plH, cy - a1.dy*plH + a2.dy*plH, cz - a1.dz*plH + a2.dz*plH
+        DrawPoly(q1x, q1y, q1z, q2x, q2y, q2z, q3x, q3y, q3z, r, g, b, a)
+        DrawPoly(q1x, q1y, q1z, q3x, q3y, q3z, q2x, q2y, q2z, r, g, b, a)
+        DrawPoly(q1x, q1y, q1z, q3x, q3y, q3z, q4x, q4y, q4z, r, g, b, a)
+        DrawPoly(q1x, q1y, q1z, q4x, q4y, q4z, q3x, q3y, q3z, r, g, b, a)
+        DrawLine(q1x, q1y, q1z, q2x, q2y, q2z, r, g, b, a)
+        DrawLine(q2x, q2y, q2z, q3x, q3y, q3z, r, g, b, a)
+        DrawLine(q3x, q3y, q3z, q4x, q4y, q4z, r, g, b, a)
+        DrawLine(q4x, q4y, q4z, q1x, q1y, q1z, r, g, b, a)
+    end
+end
+
+-- Determine which gizmo element the screen centre is closest to.
+local function updateGizmoHover(ox, oy, oz)
+    if gizmoDragging then return end
+    gizmoHover = nil
+    local best = GIZMO_HIT_RADIUS
+    for _, ax in ipairs(GIZMO_AXES) do
+        local ok, sx, sy = GetScreenCoordFromWorldCoord(
+            ox + ax.dx * GIZMO_LEN, oy + ax.dy * GIZMO_LEN, oz + ax.dz * GIZMO_LEN)
+        if ok then
+            local d = math.sqrt((sx - 0.5) * (sx - 0.5) + (sy - 0.5) * (sy - 0.5))
+            if d < best then best = d; gizmoHover = ax.id end
+        end
+    end
+    for _, pl in ipairs(GIZMO_PLANES) do
+        local a1 = GIZMO_AXES[pl.i1]
+        local a2 = GIZMO_AXES[pl.i2]
+        local ok, sx, sy = GetScreenCoordFromWorldCoord(
+            ox + (a1.dx + a2.dx) * GIZMO_PLANE_OFF,
+            oy + (a1.dy + a2.dy) * GIZMO_PLANE_OFF,
+            oz + (a1.dz + a2.dz) * GIZMO_PLANE_OFF)
+        if ok then
+            local d = math.sqrt((sx - 0.5) * (sx - 0.5) + (sy - 0.5) * (sy - 0.5))
+            if d < best then best = d; gizmoHover = pl.id end
+        end
+    end
+end
+
+-- Apply mouse drag delta to prop position along the active gizmo axis/plane.
+local function applyGizmoDrag(rawMX, rawMY, px, py, pz, sens)
+    if not gizmoTarget then return px, py, pz end
+    local axes = {}
+    if #gizmoTarget == 1 then
+        for _, ax in ipairs(GIZMO_AXES) do
+            if ax.id == gizmoTarget then axes[#axes + 1] = ax end
+        end
+    else
+        for _, pl in ipairs(GIZMO_PLANES) do
+            if pl.id == gizmoTarget then
+                axes[#axes + 1] = GIZMO_AXES[pl.i1]
+                axes[#axes + 1] = GIZMO_AXES[pl.i2]
+            end
+        end
+    end
+    for _, ax in ipairs(axes) do
+        local ok1, sx1, sy1 = GetScreenCoordFromWorldCoord(px, py, pz)
+        local ok2, sx2, sy2 = GetScreenCoordFromWorldCoord(
+            px + ax.dx * 0.5, py + ax.dy * 0.5, pz + ax.dz * 0.5)
+        if ok1 and ok2 then
+            local adx = sx2 - sx1
+            local ady = sy2 - sy1
+            local alen = math.sqrt(adx * adx + ady * ady)
+            if alen > 0.001 then
+                adx, ady = adx / alen, ady / alen
+                local proj = rawMX * adx + rawMY * ady
+                px = px + ax.dx * proj * sens
+                py = py + ax.dy * proj * sens
+                pz = pz + ax.dz * proj * sens
+            end
+        end
+    end
+    return px, py, pz
+end
+
+-- Thin crosshair at screen centre (aim at gizmo elements to interact).
+local function drawCrosshair()
+    DrawRect(0.5, 0.5, 0.012, 0.0015, 255, 255, 255, 160)
+    DrawRect(0.5, 0.5, 0.0015, 0.012, 255, 255, 255, 160)
+    DrawRect(0.5, 0.5, 0.003, 0.003, 255, 255, 255, 220)
+end
+
+-- Draw a simple HUD line at (x, y) in screen-space [0..1]
+local function drawHudLine(x, y, text)
+    SetTextFont(4)
+    SetTextScale(0.0, 0.38)
+    SetTextColour(255, 255, 255, 230)
+    SetTextDropshadow(0, 0, 0, 0, 255)
+    SetTextDropShadow()
+    SetTextOutline()
+    SetTextEntry('STRING')
+    AddTextComponentString(text)
+    DrawText(x, y)
+end
+
 local function stopPlacement(commit)
     if not placementActive then return end
     placementActive = false
+    gizmoDragging = false
+    gizmoTarget = nil
+    gizmoHover = nil
 
     if placementCam then
         RenderScriptCams(false, true, 350, true, false)
@@ -201,7 +399,6 @@ local function stopPlacement(commit)
             local rot = GetEntityRotation(placementProp, 2)
             pendingCreate.position = { x = coords.x, y = coords.y, z = coords.z }
             pendingCreate.rotation = { x = rot.x, y = rot.y, z = rot.z }
-            -- Remove the temp prop - the server will broadcast the real one
             DeleteEntity(placementProp)
             placementProp = nil
             TriggerServerEvent('cnbt-inventory:stashes:create', pendingCreate)
@@ -212,19 +409,6 @@ local function stopPlacement(commit)
     end
 
     pendingCreate = nil
-end
-
--- Draw a simple HUD line at (x, y) in screen-space [0..1]
-local function drawHudLine(x, y, text)
-    SetTextFont(4)
-    SetTextScale(0.0, 0.38)
-    SetTextColour(255, 255, 255, 230)
-    SetTextDropshadow(0, 0, 0, 0, 255)
-    SetTextDropShadow()
-    SetTextOutline()
-    SetTextEntry('STRING')
-    AddTextComponentString(text)
-    DrawText(x, y)
 end
 
 local function startPlacement(formData)
@@ -283,25 +467,29 @@ local function startPlacement(formData)
 
     pendingCreate = formData
     placementActive = true
+    gizmoDragging = false
+    gizmoTarget = nil
+    gizmoHover = nil
 
     CreateThread(function()
         while placementActive do
-            -- Block all gameplay controls (movement, shooting, phone, etc.).
-            -- We'll read inputs with IsDisabledControl* instead.
             DisableAllControlActions(0)
 
-            -- ---- Mouse look (freecam rotation) ----
-            local mouseX = GetDisabledControlNormal(0, 1) * 8.0
-            local mouseY = GetDisabledControlNormal(0, 2) * 8.0
-            camYaw = camYaw - mouseX
-            camPitch = camPitch - mouseY
-            if camPitch > 89.0 then camPitch = 89.0 end
-            if camPitch < -89.0 then camPitch = -89.0 end
+            local rawMouseX = GetDisabledControlNormal(0, 1)
+            local rawMouseY = GetDisabledControlNormal(0, 2)
 
-            -- ---- WASD camera movement ----
-            local fast = IsDisabledControlPressed(0, 21) -- Left Shift
+            -- ---- Camera rotation (suppressed while dragging gizmo) ----
+            if not gizmoDragging then
+                camYaw   = camYaw   - rawMouseX * 8.0
+                camPitch = camPitch - rawMouseY * 8.0
+                if camPitch >  89.0 then camPitch =  89.0 end
+                if camPitch < -89.0 then camPitch = -89.0 end
+            end
+
+            -- ---- WASD camera movement (always active) ----
+            local fast  = IsDisabledControlPressed(0, 21) -- Left Shift
             local speed = fast and 0.6 or 0.15
-            local yawRad = math.rad(camYaw)
+            local yawRad   = math.rad(camYaw)
             local pitchRad = math.rad(camPitch)
             local fx = -math.sin(yawRad) * math.cos(pitchRad)
             local fy =  math.cos(yawRad) * math.cos(pitchRad)
@@ -309,88 +497,71 @@ local function startPlacement(formData)
             local rx =  math.cos(yawRad)
             local ry =  math.sin(yawRad)
 
-            if IsDisabledControlPressed(0, 32) then -- W
-                camX = camX + fx * speed
-                camY = camY + fy * speed
-                camZ = camZ + fz * speed
-            end
-            if IsDisabledControlPressed(0, 33) then -- S
-                camX = camX - fx * speed
-                camY = camY - fy * speed
-                camZ = camZ - fz * speed
-            end
-            if IsDisabledControlPressed(0, 34) then -- A
-                camX = camX - rx * speed
-                camY = camY - ry * speed
-            end
-            if IsDisabledControlPressed(0, 35) then -- D
-                camX = camX + rx * speed
-                camY = camY + ry * speed
-            end
-            if IsDisabledControlPressed(0, 22) then -- Space: up
-                camZ = camZ + speed
-            end
-            if IsDisabledControlPressed(0, 36) then -- Left Ctrl: down
-                camZ = camZ - speed
-            end
+            if IsDisabledControlPressed(0, 32) then camX = camX + fx*speed; camY = camY + fy*speed; camZ = camZ + fz*speed end
+            if IsDisabledControlPressed(0, 33) then camX = camX - fx*speed; camY = camY - fy*speed; camZ = camZ - fz*speed end
+            if IsDisabledControlPressed(0, 34) then camX = camX - rx*speed; camY = camY - ry*speed end
+            if IsDisabledControlPressed(0, 35) then camX = camX + rx*speed; camY = camY + ry*speed end
+            if IsDisabledControlPressed(0, 22) then camZ = camZ + speed end
+            if IsDisabledControlPressed(0, 36) then camZ = camZ - speed end
 
             SetCamCoord(placementCam, camX, camY, camZ)
             SetCamRot(placementCam, camPitch, 0.0, camYaw, 2)
 
-            -- ---- Prop transform via arrow keys + Q/E + PgUp/PgDn ----
+            -- ---- Prop transform ----
             if DoesEntityExist(placementProp) then
-                local pc = GetEntityCoords(placementProp)
+                local pc  = GetEntityCoords(placementProp)
                 local px, py, pz = pc.x, pc.y, pc.z
                 local rot = GetEntityRotation(placementProp, 2)
-                local propYaw = rot.z
+                local propYaw  = rot.z
                 local propStep = fast and 0.25 or 0.05
-                local rotStep  = fast and 5.0 or 1.0
+                local rotStep  = fast and 5.0  or 1.0
 
-                -- Move in camera-relative XY (flatten camera forward to ground)
+                -- Gizmo hover detection (screen-centre vs gizmo elements)
+                updateGizmoHover(px, py, pz)
+
+                -- Gizmo mouse interaction (LMB = control 24)
+                if IsDisabledControlJustPressed(0, 24) and gizmoHover then
+                    gizmoDragging = true
+                    gizmoTarget   = gizmoHover
+                end
+                if gizmoDragging and not IsDisabledControlPressed(0, 24) then
+                    gizmoDragging = false
+                    gizmoTarget   = nil
+                end
+                if gizmoDragging then
+                    local sens = fast and (GIZMO_DRAG_SENS * 3.0) or GIZMO_DRAG_SENS
+                    px, py, pz = applyGizmoDrag(rawMouseX, rawMouseY, px, py, pz, sens)
+                end
+
+                -- Keyboard prop movement (camera-relative XY)
                 local flatLen = math.sqrt(fx * fx + fy * fy)
                 local cfx, cfy = 0.0, 1.0
                 if flatLen > 0.001 then cfx, cfy = fx / flatLen, fy / flatLen end
                 local crx, cry = cfy, -cfx
 
-                if IsDisabledControlPressed(0, 172) then -- Arrow Up
-                    px = px + cfx * propStep
-                    py = py + cfy * propStep
-                end
-                if IsDisabledControlPressed(0, 173) then -- Arrow Down
-                    px = px - cfx * propStep
-                    py = py - cfy * propStep
-                end
-                if IsDisabledControlPressed(0, 174) then -- Arrow Left
-                    px = px - crx * propStep
-                    py = py - cry * propStep
-                end
-                if IsDisabledControlPressed(0, 175) then -- Arrow Right
-                    px = px + crx * propStep
-                    py = py + cry * propStep
-                end
-                if IsDisabledControlPressed(0, 10) then -- Page Up
-                    pz = pz + propStep
-                end
-                if IsDisabledControlPressed(0, 11) then -- Page Down
-                    pz = pz - propStep
-                end
-                if IsDisabledControlPressed(0, 44) then -- Q
-                    propYaw = propYaw - rotStep
-                end
-                if IsDisabledControlPressed(0, 38) then -- E
-                    propYaw = propYaw + rotStep
-                end
+                if IsDisabledControlPressed(0, 172) then px = px + cfx * propStep; py = py + cfy * propStep end
+                if IsDisabledControlPressed(0, 173) then px = px - cfx * propStep; py = py - cfy * propStep end
+                if IsDisabledControlPressed(0, 174) then px = px - crx * propStep; py = py - cry * propStep end
+                if IsDisabledControlPressed(0, 175) then px = px + crx * propStep; py = py + cry * propStep end
+                if IsDisabledControlPressed(0, 10)  then pz = pz + propStep end
+                if IsDisabledControlPressed(0, 11)  then pz = pz - propStep end
+                if IsDisabledControlPressed(0, 44)  then propYaw = propYaw - rotStep end
+                if IsDisabledControlPressed(0, 38)  then propYaw = propYaw + rotStep end
 
                 SetEntityCoordsNoOffset(placementProp, px, py, pz, false, false, false)
                 SetEntityRotation(placementProp, 0.0, 0.0, propYaw, 2, true)
+
+                -- Draw the 3D gizmo
+                drawGizmo(px, py, pz)
             end
 
-            -- ---- HUD hints ----
+            -- ---- Crosshair + HUD hints ----
+            drawCrosshair()
             drawHudLine(0.02, 0.02,  '~y~DEPOSIT PLACEMENT EDITOR')
             drawHudLine(0.02, 0.055, '~w~' .. (pendingCreate and pendingCreate.label or '?'))
             drawHudLine(0.02, 0.85,  '~b~WASD~w~ fly cam   ~b~SPACE/CTRL~w~ up/down   ~b~MOUSE~w~ look')
             drawHudLine(0.02, 0.875, '~b~ARROWS~w~ move prop   ~b~PGUP/PGDN~w~ height   ~b~Q/E~w~ rotate')
-            drawHudLine(0.02, 0.9,   '~b~SHIFT~w~ faster   ~g~ENTER~w~ confirm   ~r~BACKSPACE~w~ cancel')
+            drawHudLine(0.02, 0.9,   '~b~LMB~w~ drag gizmo   ~b~SHIFT~w~ faster   ~g~ENTER~w~ confirm   ~r~BACKSPACE~w~ cancel')
 
             HideHudAndRadarThisFrame()
 
