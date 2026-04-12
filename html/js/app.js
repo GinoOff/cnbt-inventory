@@ -322,7 +322,9 @@ window.CNBT = (function () {
 
         if (equippedBackpack) {
             const def = itemDefs[equippedBackpack.name];
-            window.UtilityPanel.renderEquipSlot('equip-backpack', equippedBackpack, def);
+            if (window.UtilityPanel) {
+                window.UtilityPanel.renderEquipSlot('equip-backpack', equippedBackpack, def);
+            }
 
             // Right click on the slot to unequip
             slot.oncontextmenu = function (e) {
