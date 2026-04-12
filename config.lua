@@ -33,6 +33,21 @@ Config.DefaultStashCols = 6
 Config.DefaultStashRows = 6
 Config.DefaultStashMaxWeight = 50000
 
+-- ============================================
+-- DEPOSIT MANAGER (/depositi) - staff only
+-- ============================================
+--
+-- Which ESX groups can run /depositi to create, edit or remove stashes.
+-- The server checks xPlayer.getGroup() against this whitelist.
+Config.DepositAdminGroups = {
+    ['admin']      = true,
+    ['superadmin'] = true,
+    ['owner']      = true,
+}
+
+-- Distance at which an ox_target zone is considered "near" for stash props.
+Config.StashTargetDistance = 2.5
+
 -- Ground drop settings
 Config.DropDespawnTime = 300 -- seconds
 Config.DropMaxDistance = 2.0  -- distance to interact with drops

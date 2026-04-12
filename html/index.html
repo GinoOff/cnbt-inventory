@@ -108,6 +108,75 @@
     <!-- Grid highlight overlay cells (reused pool) -->
     <div id="highlight-pool"></div>
 
+    <!-- ============================================
+         STAFF DEPOSIT MANAGER (/depositi)
+         ============================================ -->
+    <div id="stash-manager" class="hidden">
+        <div class="sm-panel">
+            <div class="sm-header">
+                <div class="sm-title-group">
+                    <span class="sm-category">STAFF</span>
+                    <h2 class="sm-title">GESTIONE DEPOSITI</h2>
+                    <div class="sm-subtitle">DEPOSITI // CONFIGURAZIONE</div>
+                </div>
+                <button id="sm-close" class="sm-close-btn" title="Chiudi">&times;</button>
+            </div>
+
+            <div class="sm-body">
+                <!-- Left: existing stashes list -->
+                <div class="sm-col sm-col-list">
+                    <div class="sm-col-header">
+                        <span>Depositi esistenti</span>
+                        <button id="sm-create-btn" class="sm-action-btn">+ Crea Deposito</button>
+                    </div>
+                    <div id="sm-list" class="sm-list">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right: create form (hidden until "Crea Deposito") -->
+                <div id="sm-form" class="sm-col sm-col-form hidden">
+                    <div class="sm-col-header">
+                        <span>Nuovo deposito</span>
+                    </div>
+                    <div class="sm-form-body">
+                        <label class="sm-field">
+                            <span class="sm-label">ID (univoco, senza spazi)</span>
+                            <input type="text" id="sm-in-id" maxlength="32" placeholder="es. magazzino_porto">
+                        </label>
+                        <label class="sm-field">
+                            <span class="sm-label">Nome visibile</span>
+                            <input type="text" id="sm-in-label" maxlength="48" placeholder="es. Magazzino Porto">
+                        </label>
+                        <div class="sm-field-row">
+                            <label class="sm-field">
+                                <span class="sm-label">Larghezza</span>
+                                <input type="number" id="sm-in-cols" value="6" min="1" max="20">
+                            </label>
+                            <label class="sm-field">
+                                <span class="sm-label">Altezza</span>
+                                <input type="number" id="sm-in-rows" value="6" min="1" max="20">
+                            </label>
+                            <label class="sm-field">
+                                <span class="sm-label">Peso max (g)</span>
+                                <input type="number" id="sm-in-weight" value="50000" min="1">
+                            </label>
+                        </div>
+                        <label class="sm-field">
+                            <span class="sm-label">Modello prop (GTA V)</span>
+                            <input type="text" id="sm-in-prop" placeholder="es. prop_toolchest_05">
+                        </label>
+                        <div class="sm-form-actions">
+                            <button id="sm-cancel-create" class="sm-action-btn sm-btn-ghost">Annulla</button>
+                            <button id="sm-submit-create" class="sm-action-btn sm-btn-primary">Posiziona &rarr;</button>
+                        </div>
+                        <p class="sm-hint">Dopo la conferma si aprira' l'editor freecam per posizionare il prop nel mondo.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Gunsmith full-screen tactical overlay -->
     <div id="gunsmith-overlay" class="hidden">
         <!-- Smooth radial vignette darkening the edges (no hard borders) -->
@@ -150,6 +219,7 @@
     <script src="js/grid.js"></script>
     <script src="js/drag.js"></script>
     <script src="js/gunsmith.js"></script>
+    <script src="js/stashes.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
