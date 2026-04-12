@@ -508,6 +508,7 @@ local function startPlacement(formData)
             SetCamRot(placementCam, camPitch, 0.0, camYaw, 2)
 
             -- ---- Prop transform ----
+            local gizmoJustReleased = false
             if DoesEntityExist(placementProp) then
                 local pc  = GetEntityCoords(placementProp)
                 local px, py, pz = pc.x, pc.y, pc.z
@@ -527,6 +528,7 @@ local function startPlacement(formData)
                 if gizmoDragging and not IsDisabledControlPressed(0, 24) then
                     gizmoDragging = false
                     gizmoTarget   = nil
+                    gizmoJustReleased = true
                 end
                 if gizmoDragging then
                     local sens = fast and (GIZMO_DRAG_SENS * 3.0) or GIZMO_DRAG_SENS
@@ -566,7 +568,9 @@ local function startPlacement(formData)
             HideHudAndRadarThisFrame()
 
             -- ---- Confirm / Cancel ----
-            if IsDisabledControlJustReleased(0, 18) then -- Enter
+            -- INPUT_ENTER (18) is also bound to LMB in GTA V, so skip
+            -- confirmation on the same frame the gizmo drag was released.
+            if not gizmoJustReleased and IsDisabledControlJustReleased(0, 18) then -- Enter
                 stopPlacement(true)
             elseif IsDisabledControlJustReleased(0, 177) then -- Backspace
                 stopPlacement(false)
