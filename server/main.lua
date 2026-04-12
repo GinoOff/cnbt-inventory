@@ -114,6 +114,12 @@ function saveInventory(owner, invType)
     local inv = inventories[key]
     if not inv then return end
 
+    -- Case virtual inventories are synced to parent item metadata, not saved to DB
+    if invType == 'case' then
+        saveDirty[key] = nil
+        return
+    end
+
     MySQL.update('UPDATE cnbt_inventories SET items = ?, backpack = ?, hotbar = ? WHERE owner = ? AND inv_type = ?', {
         json.encode(inv.items),
         inv.backpack and json.encode(inv.backpack) or nil,
@@ -160,6 +166,16 @@ function getGridDimensions(invType, owner)
         return vehConfig.glovebox.cols, vehConfig.glovebox.rows, vehConfig.glovebox.maxWeight
     elseif invType == 'drop' then
         return Config.DropCols, Config.DropRows, Config.DropMaxWeight
+    elseif invType == 'case' then
+        -- Look up which case this virtual inventory belongs to
+        for _, ref in pairs(openCases) do
+            if ref.caseKey == owner then
+                local caseDef = Config.Cases[ref.caseName]
+                if caseDef then
+                    return caseDef.cols, caseDef.rows, caseDef.maxWeight
+                end
+            end
+        end
     end
     return Config.DefaultStashCols, Config.DefaultStashRows, Config.DefaultStashMaxWeight
 end
@@ -174,6 +190,60 @@ end
 -- Note: getGridDimensions checks customStashes internally (see stash check above)
 
 -- ============================================
+-- CASES (filtered containers)
+-- ============================================
+
+-- Track which case each player has open:
+--   openCases[src] = { parentOwner, parentInvType, parentGrid, itemIndex, caseName, caseKey }
+openCases = {}
+
+-- Check whether an item passes a case's filter
+function itemPassesCaseFilter(itemName, caseName)
+    local caseDef = Config.Cases[caseName]
+    if not caseDef or not caseDef.filter then return true end
+    local itemDef = getItemDef(itemName)
+    if not itemDef then return false end
+    local f = caseDef.filter
+    if f.category and itemDef.category ~= f.category then return false end
+    if f.weaponClass and (itemDef.weaponClass or '') ~= f.weaponClass then return false end
+    return true
+end
+
+-- Sync virtual case inventory items back into the case item's metadata
+function syncCaseToParent(src)
+    local ref = openCases[src]
+    if not ref then return end
+    local parentInv = inventories[getCacheKey(ref.parentOwner, ref.parentInvType)]
+    if not parentInv then return end
+    local parentItems
+    if ref.parentGrid == 'backpack' and parentInv.backpack then
+        parentItems = parentInv.backpack.items
+    else
+        parentItems = parentInv.items
+    end
+    local caseItem = parentItems[ref.itemIndex]
+    if not caseItem then return end
+    local caseInv = inventories[getCacheKey(ref.caseKey, 'case')]
+    if caseInv then
+        if not caseItem.metadata then caseItem.metadata = {} end
+        caseItem.metadata.caseItems = caseInv.items
+        markDirty(ref.parentOwner, ref.parentInvType)
+    end
+end
+
+-- Clean up a player's open case
+function closeCaseForPlayer(src)
+    local ref = openCases[src]
+    if not ref then return end
+    syncCaseToParent(src)
+    -- Remove virtual inventory from cache
+    local caseKey = getCacheKey(ref.caseKey, 'case')
+    inventories[caseKey] = nil
+    saveDirty[caseKey] = nil
+    openCases[src] = nil
+end
+
+-- ============================================
 -- PLAYER CONNECT / DISCONNECT
 -- ============================================
 
@@ -185,6 +255,7 @@ end)
 
 AddEventHandler('playerDropped', function(reason)
     local src = source
+    closeCaseForPlayer(src)
     local xPlayer = ESX.GetPlayerFromId(src)
     if not xPlayer then return end
     local identifier = xPlayer.identifier
@@ -297,6 +368,7 @@ AddEventHandler('cnbt-inventory:server:moveItem', function(data)
         item.y = data.y
         item.rotated = data.rotated
         markDirty(owner, invType)
+        if invType == 'case' then syncCaseToParent(src) end
         TriggerClientEvent('cnbt-inventory:client:moveSuccess', src, data)
     else
         TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
@@ -364,6 +436,19 @@ AddEventHandler('cnbt-inventory:server:transferItem', function(data)
         return
     end
 
+    -- Case filter check: ensure item is allowed in the destination case
+    if dstInvType == 'case' and openCases[src] then
+        -- Never allow cases/backpacks inside a case
+        if Config.Cases[item.name] or Config.Backpacks[item.name] then
+            TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
+            return
+        end
+        if not itemPassesCaseFilter(item.name, openCases[src].caseName) then
+            TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
+            return
+        end
+    end
+
     if canPlaceInGrid(dstGridItems, dstCols, dstRows, data.x, data.y, sizeX, sizeY, nil) then
         -- Remove from source
         table.remove(srcGridItems, itemIndex)
@@ -380,6 +465,11 @@ AddEventHandler('cnbt-inventory:server:transferItem', function(data)
 
         markDirty(srcOwner, srcInvType)
         markDirty(dstOwner, dstInvType)
+
+        -- Sync case contents back to parent item metadata
+        if srcInvType == 'case' or dstInvType == 'case' then
+            syncCaseToParent(src)
+        end
 
         TriggerClientEvent('cnbt-inventory:client:transferSuccess', src, data)
     else
@@ -1142,12 +1232,82 @@ AddEventHandler('cnbt-inventory:server:requestGunsmithData', function(data)
 end)
 
 -- Close inventory
+-- Open a case item as a filtered external inventory
+RegisterNetEvent('cnbt-inventory:server:openCase')
+AddEventHandler('cnbt-inventory:server:openCase', function(data)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    -- Close any previously open case for this player
+    closeCaseForPlayer(src)
+
+    local inv = loadInventory(identifier, 'player')
+    local gridLabel = data.grid or 'player'
+    local gridItems
+    if gridLabel == 'backpack' and inv.backpack then
+        gridItems = inv.backpack.items
+    else
+        gridItems = inv.items
+        gridLabel = 'player'
+    end
+
+    local itemIndex = data.itemIndex
+    if not gridItems[itemIndex] then return end
+
+    local caseItem = gridItems[itemIndex]
+    local caseDef = Config.Cases[caseItem.name]
+    if not caseDef then return end
+
+    -- Create a unique key for this case's virtual inventory
+    local caseKey = identifier .. '_case_' .. itemIndex .. '_' .. gridLabel
+
+    -- Load items from the case's metadata
+    local caseItems = {}
+    if caseItem.metadata and caseItem.metadata.caseItems then
+        caseItems = caseItem.metadata.caseItems
+    end
+
+    -- Create virtual inventory in cache
+    inventories[getCacheKey(caseKey, 'case')] = {
+        items = caseItems,
+        backpack = nil,
+        hotbar = {},
+    }
+
+    -- Track which case this player has open
+    openCases[src] = {
+        parentOwner = identifier,
+        parentInvType = 'player',
+        parentGrid = gridLabel,
+        itemIndex = itemIndex,
+        caseName = caseItem.name,
+        caseKey = caseKey,
+    }
+
+    -- Get the item definition for the label
+    local itemDef = getItemDef(caseItem.name)
+    local label = itemDef and itemDef.label or caseItem.name
+
+    -- Send to client as an external inventory via forceOpenExternal
+    TriggerClientEvent('cnbt-inventory:client:forceOpenExternal', src, {
+        owner = caseKey,
+        invType = 'case',
+        label = label,
+        filter = caseDef.filter,
+    })
+end)
+
 RegisterNetEvent('cnbt-inventory:server:closeInventory')
 AddEventHandler('cnbt-inventory:server:closeInventory', function()
     local src = source
     local xPlayer = ESX.GetPlayerFromId(src)
     if not xPlayer then return end
     local identifier = xPlayer.identifier
+
+    -- Sync and close any open case
+    closeCaseForPlayer(src)
 
     -- Immediately save player inventory
     saveInventory(identifier, 'player')

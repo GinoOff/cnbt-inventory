@@ -193,6 +193,7 @@ Items['weapon_pistol'] = {
     image       = 'weapon_pistol.png',
     category    = 'weapon',
     weaponHash  = 'WEAPON_PISTOL',
+    weaponClass = 'pistol',
 }
 
 Items['weapon_smg'] = {
@@ -207,6 +208,7 @@ Items['weapon_smg'] = {
     image       = 'weapon_smg.png',
     category    = 'weapon',
     weaponHash  = 'WEAPON_SMG',
+    weaponClass = 'smg',
 }
 
 Items['weapon_rifle'] = {
@@ -221,6 +223,7 @@ Items['weapon_rifle'] = {
     image       = 'weapon_rifle.png',
     category    = 'weapon',
     weaponHash  = 'WEAPON_ASSAULTRIFLE',
+    weaponClass = 'rifle',
 }
 
 Items['weapon_shotgun'] = {
@@ -235,6 +238,7 @@ Items['weapon_shotgun'] = {
     image       = 'weapon_shotgun.png',
     category    = 'weapon',
     weaponHash  = 'WEAPON_PUMPSHOTGUN',
+    weaponClass = 'rifle',
 }
 
 Items['weapon_knife'] = {
@@ -596,4 +600,98 @@ Items['money_bag'] = {
     usable      = false,
     image       = 'money_bag.png',
     category    = 'misc',
+}
+
+-- ============================================
+-- CASES (filtered containers)
+-- ============================================
+Items['case_pistol'] = {
+    label       = 'Pistol Case',
+    description = 'A padded case for storing small firearms.',
+    weight      = 600,
+    sizeX       = 3,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'case_pistol.png',
+    category    = 'case',
+}
+
+Items['case_smg'] = {
+    label       = 'SMG Case',
+    description = 'A reinforced case for submachine guns.',
+    weight      = 900,
+    sizeX       = 4,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'case_smg.png',
+    category    = 'case',
+}
+
+Items['case_rifle'] = {
+    label       = 'Rifle Case',
+    description = 'A heavy-duty case for rifles and shotguns.',
+    weight      = 1200,
+    sizeX       = 5,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'case_rifle.png',
+    category    = 'case',
+}
+
+Items['case_sniper'] = {
+    label       = 'Sniper Case',
+    description = 'A precision case for sniper rifles.',
+    weight      = 1400,
+    sizeX       = 5,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'case_sniper.png',
+    category    = 'case',
+}
+
+Items['case_ammo'] = {
+    label       = 'Ammo Case',
+    description = 'A sturdy container for storing ammunition.',
+    weight      = 800,
+    sizeX       = 3,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'case_ammo.png',
+    category    = 'case',
+}
+
+Items['case_medical'] = {
+    label       = 'First Aid Case',
+    description = 'A medical case for storing first aid supplies.',
+    weight      = 700,
+    sizeX       = 3,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'case_medical.png',
+    category    = 'case',
+}
+
+Items['case_cooler'] = {
+    label       = 'Cooler',
+    description = 'An insulated cooler for food and drinks.',
+    weight      = 900,
+    sizeX       = 3,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'case_cooler.png',
+    category    = 'case',
 }

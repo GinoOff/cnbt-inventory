@@ -108,6 +108,7 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
             image = def.image,
             category = def.category,
             weaponHash = def.weaponHash,
+            weaponClass = def.weaponClass,
         }
     end
 
@@ -121,6 +122,17 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
         }
     end
 
+    -- Case config (for NUI filter validation)
+    local caseConfigs = {}
+    for name, caseDef in pairs(Config.Cases) do
+        caseConfigs[name] = {
+            cols = caseDef.cols,
+            rows = caseDef.rows,
+            maxWeight = caseDef.maxWeight,
+            filter = caseDef.filter,
+        }
+    end
+
     SetNuiFocus(true, true)
     SetNuiFocusKeepInput(true) -- allow player to move while inventory is open
     SendNUIMessage({
@@ -129,6 +141,7 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
         externalInv = externalInv,
         itemDefs = itemDefs,
         backpackConfigs = backpackConfigs,
+        caseConfigs = caseConfigs,
         hotbarSlots = Config.HotbarSlots,
         colors = Config.Colors,
     })
@@ -265,6 +278,14 @@ end)
 
 RegisterNUICallback('updateHotbar', function(data, cb)
     TriggerServerEvent('cnbt-inventory:server:updateHotbar', data.hotbar)
+    cb('ok')
+end)
+
+RegisterNUICallback('openCase', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:openCase', {
+        itemIndex = data.itemIndex,
+        grid = data.grid,
+    })
     cb('ok')
 end)
 

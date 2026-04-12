@@ -13,6 +13,7 @@ window.CNBT = (function () {
     // ============================================
     let itemDefs = {};
     let backpackConfigs = {};
+    let caseConfigs = {};
     let hotbarSlotCount = 5;
 
     // Grids
@@ -170,6 +171,7 @@ window.CNBT = (function () {
     function handleOpen(msg) {
         itemDefs = msg.itemDefs || {};
         backpackConfigs = msg.backpackConfigs || {};
+        caseConfigs = msg.caseConfigs || {};
         hotbarSlotCount = msg.hotbarSlots || 5;
 
         // Apply config-driven color palette to :root CSS variables
@@ -257,6 +259,10 @@ window.CNBT = (function () {
         const extEl = document.getElementById('external-grid');
         if (externalGrid) externalGrid.destroy();
         externalGrid = new InventoryGrid(extEl, extData.cols, extData.rows, extData.maxWeight, 'external');
+        // If this is a case with a filter, set it on the grid for drag validation
+        if (extData.filter) {
+            externalGrid.filter = extData.filter;
+        }
         externalGrid.loadItems(extData.items || []);
 
         externalInfo = extData;
@@ -683,6 +689,20 @@ window.CNBT = (function () {
                     nuiCallback('useItem', {
                         grid: gridId,
                         itemIndex: itemIndex + 1,
+                    });
+                },
+            });
+        }
+
+        // Open case (only for case items in player/backpack grid)
+        if (caseConfigs[item.name] && (gridId === 'player' || gridId === 'backpack')) {
+            options.push({
+                label: 'Apri',
+                primary: true,
+                action: function () {
+                    nuiCallback('openCase', {
+                        itemIndex: itemIndex + 1,
+                        grid: gridId,
                     });
                 },
             });
@@ -1424,6 +1444,21 @@ window.CNBT = (function () {
     // ============================================
     // PUBLIC API
     // ============================================
+    /**
+     * Check if an item passes a grid's case filter.
+     * Returns true if no filter is set or the item matches.
+     */
+    function itemPassesFilter(itemName, filter) {
+        if (!filter) return true;
+        const def = itemDefs[itemName];
+        if (!def) return false;
+        // Cases and backpacks can never go inside a case
+        if (caseConfigs[itemName] || backpackConfigs[itemName]) return false;
+        if (filter.category && def.category !== filter.category) return false;
+        if (filter.weaponClass && (def.weaponClass || '') !== filter.weaponClass) return false;
+        return true;
+    }
+
     return {
         itemDefs: itemDefs,
         get itemDefs() { return itemDefs; },
@@ -1437,6 +1472,7 @@ window.CNBT = (function () {
         assignHotbar,
         getItemDef: function (name) { return itemDefs[name]; },
         getItemDefs: function () { return itemDefs; },
+        itemPassesFilter,
         reloadPlayerItems,
     };
 })();

@@ -291,7 +291,12 @@ const DragSystem = (function () {
 
                 // Check if this is the same grid and same item
                 const excludeIdx = (grid === dragItem.grid) ? dragItem.index : -1;
-                const canPlace = grid.canPlace(gCoords.x, gCoords.y, size.w, size.h, excludeIdx);
+                let canPlace = grid.canPlace(gCoords.x, gCoords.y, size.w, size.h, excludeIdx);
+
+                // Case filter: block items that don't match the grid's filter
+                if (canPlace && grid.filter && grid !== dragItem.grid) {
+                    canPlace = window.CNBT.itemPassesFilter(dragItem.item.name, grid.filter);
+                }
 
                 hoverGridX = gCoords.x;
                 hoverGridY = gCoords.y;
@@ -324,7 +329,11 @@ const DragSystem = (function () {
                 const excludeIdx = (grid === dragItem.grid) ? dragItem.index : -1;
                 const canPlace = grid.canPlace(gCoords.x, gCoords.y, size.w, size.h, excludeIdx);
 
-                if (canPlace) {
+                // Case filter: block items that don't match the grid's filter
+                const passesFilter = !grid.filter || grid === dragItem.grid ||
+                    window.CNBT.itemPassesFilter(dragItem.item.name, grid.filter);
+
+                if (canPlace && passesFilter) {
                     return {
                         grid: grid,
                         gridId: id,
@@ -335,16 +344,18 @@ const DragSystem = (function () {
                 }
 
                 // Check if dropping on same item type for stacking
-                const targetOccupant = grid.getItemAt(gCoords.x, gCoords.y);
-                if (targetOccupant && targetOccupant.item.name === dragItem.item.name) {
-                    const targetDef = window.CNBT.itemDefs[targetOccupant.item.name];
-                    if (targetDef && targetDef.stackable) {
-                        return {
-                            grid: grid,
-                            gridId: id,
-                            stackTarget: targetOccupant,
-                            isStack: true,
-                        };
+                if (passesFilter) {
+                    const targetOccupant = grid.getItemAt(gCoords.x, gCoords.y);
+                    if (targetOccupant && targetOccupant.item.name === dragItem.item.name) {
+                        const targetDef = window.CNBT.itemDefs[targetOccupant.item.name];
+                        if (targetDef && targetDef.stackable) {
+                            return {
+                                grid: grid,
+                                gridId: id,
+                                stackTarget: targetOccupant,
+                                isStack: true,
+                            };
+                        }
                     }
                 }
 

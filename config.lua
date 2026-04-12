@@ -69,6 +69,45 @@ Config.Backpacks = {
     ['backpack_tactical'] = { cols = 7, rows = 6, maxWeight = 40000 },
 }
 
+-- ============================================
+-- CASES (filtered containers)
+-- ============================================
+--
+-- Each case item maps to a grid definition + a filter that restricts
+-- which items can be placed inside. Filters can match by:
+--   category    = 'medical'       (matches item.category)
+--   weaponClass = 'pistol'        (matches item.weaponClass)
+Config.Cases = {
+    ['case_pistol'] = {
+        cols = 4, rows = 3, maxWeight = 5000,
+        filter = { weaponClass = 'pistol' },
+    },
+    ['case_smg'] = {
+        cols = 5, rows = 3, maxWeight = 10000,
+        filter = { weaponClass = 'smg' },
+    },
+    ['case_rifle'] = {
+        cols = 7, rows = 3, maxWeight = 15000,
+        filter = { weaponClass = 'rifle' },
+    },
+    ['case_sniper'] = {
+        cols = 7, rows = 3, maxWeight = 15000,
+        filter = { weaponClass = 'sniper' },
+    },
+    ['case_ammo'] = {
+        cols = 4, rows = 4, maxWeight = 10000,
+        filter = { category = 'ammo' },
+    },
+    ['case_medical'] = {
+        cols = 4, rows = 4, maxWeight = 8000,
+        filter = { category = 'medical' },
+    },
+    ['case_cooler'] = {
+        cols = 4, rows = 3, maxWeight = 8000,
+        filter = { category = 'food' },
+    },
+}
+
 -- Drop bag prop model
 Config.DropPropModel = 'prop_cs_rucksack'
 
