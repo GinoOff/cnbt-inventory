@@ -107,10 +107,10 @@ window.CNBT = (function () {
                 break;
             // Health panel (cnbt-health integration)
             case 'healthUpdate':
-                if (window.HealthPanel) window.HealthPanel.update(msg.fractures);
+                if (window.HealthPanel) window.HealthPanel.update(msg.fractures, msg.bleedings);
                 break;
-            case 'splintResult':
-                handleSplintResult(msg.data);
+            case 'treatmentResult':
+                handleTreatmentResult(msg.data);
                 break;
             // Gunsmith messages
             case 'openGunsmith':
@@ -412,9 +412,10 @@ window.CNBT = (function () {
     // HEALTH PANEL (cnbt-health)
     // ============================================
 
-    // Esito dell'applicazione di una stecca: chiude la progressbar e, in caso
-    // di successo, scala gli usi dell'item (o lo rimuove se esaurito).
-    function handleSplintResult(d) {
+    // Esito dell'applicazione di un trattamento (stecca/tourniquette): chiude
+    // la progressbar e, in caso di successo, scala gli usi dell'item (o lo
+    // rimuove se esaurito).
+    function handleTreatmentResult(d) {
         if (!d) return;
         if (window.HealthPanel) window.HealthPanel.finishProgress(!!d.ok);
         if (!d.ok || !d.grid || !d.itemIndex) return;

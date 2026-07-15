@@ -103,6 +103,51 @@ Items['splint_advanced'] = {
     category    = 'medical',
 }
 
+-- Tourniquette (cnbt-health): si trascinano sulla zona che sanguina dello
+-- stickman per fermare l'emorragia. Il campo `uses` deve combaciare con
+-- Config.Tourniquets in cnbt-health/config.lua.
+Items['tourniquet'] = {
+    label       = 'Tourniquette Base',
+    description = 'Laccio emostatico per fermare le emorragie. 2 utilizzi.',
+    weight      = 150,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 2,
+    image       = 'tourniquet.png',
+    category    = 'medical',
+}
+
+Items['tourniquet_advanced'] = {
+    label       = 'Tourniquette Avanzata',
+    description = 'Laccio emostatico rinforzato, piu\' rapido da applicare. 3 utilizzi.',
+    weight      = 200,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 3,
+    image       = 'tourniquet_advanced.png',
+    category    = 'medical',
+}
+
+Items['tourniquet_military'] = {
+    label       = 'Tourniquette Militare',
+    description = 'Laccio emostatico militare di livello chirurgico. 4 utilizzi.',
+    weight      = 250,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 4,
+    image       = 'tourniquet_military.png',
+    category    = 'medical',
+}
+
 Items['crp'] = {
     label       = 'CRP Kit',
     description = 'Chest repair kit for critical injuries.',

@@ -88,7 +88,8 @@ const DragSystem = (function () {
             }
         }
 
-        // Highlight fractured body zones when dragging a splint (health panel)
+        // Highlight treatable body zones when dragging a splint/tourniquet
+        // (health panel)
         if (window.HealthPanel && window.HealthPanel.isOpen() &&
             (gridId === 'player' || gridId === 'backpack')) {
             window.HealthPanel.highlightForDrag(item.name);
@@ -125,14 +126,14 @@ const DragSystem = (function () {
             window.Gunsmith.clearSlotHighlights();
         }
 
-        // Check if dropped on a health panel body zone (splint application)
+        // Check if dropped on a health panel body zone (splint/tourniquet)
         if (window.HealthPanel && window.HealthPanel.isOpen() &&
-            window.HealthPanel.isSplintItem(dragItem.item.name) &&
+            window.HealthPanel.isTreatmentItem(dragItem.item.name) &&
             (dragItem.gridId === 'player' || dragItem.gridId === 'backpack')) {
-            const zone = window.HealthPanel.getZoneAt(e.clientX, e.clientY);
+            const zone = window.HealthPanel.getZoneAt(e.clientX, e.clientY, dragItem.item.name);
             window.HealthPanel.clearDragHighlights();
             if (zone) {
-                window.CNBT.nuiCallback('applySplint', {
+                window.CNBT.nuiCallback('applyTreatment', {
                     zone: zone,
                     grid: dragItem.gridId,
                     itemIndex: dragItem.index + 1, // Lua 1-indexed
@@ -361,10 +362,10 @@ const DragSystem = (function () {
         // Equipment slot drag-over highlights
         highlightEquipSlots();
 
-        // Health panel zone hover highlight while dragging a splint
+        // Health panel zone hover highlight while dragging a treatment item
         if (window.HealthPanel && window.HealthPanel.isOpen() &&
-            window.HealthPanel.isSplintItem(dragItem.item.name)) {
-            window.HealthPanel.hoverAt(mouseX, mouseY);
+            window.HealthPanel.isTreatmentItem(dragItem.item.name)) {
+            window.HealthPanel.hoverAt(mouseX, mouseY, dragItem.item.name);
         }
     }
 

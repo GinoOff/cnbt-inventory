@@ -2,19 +2,25 @@
  * CNBT Inventory - Health Panel (integrazione cnbt-health)
  *
  * Pannello a sinistra dello schermo, aperto insieme all'inventario.
- * Mostra uno stickman con le zone del corpo (testa, organi, braccia, gambe)
- * colorate in base allo stato delle fratture. Le stecche (splint) si
- * trascinano dall'inventario direttamente sulla zona fratturata: parte una
- * progressbar e, a fine applicazione, il server cura la frattura.
+ * Mostra uno stickman con le zone del corpo (testa, organi, braccia, gambe):
+ *   - fratture: zona riempita ambra (composta) o rossa pulsante (scomposta)
+ *   - sanguinamenti: goccia di sangue sulla zona (leggero/medio/pesante)
+ *
+ * Trattamenti trascinabili dall'inventario sulla zona dello stickman:
+ *   - stecche (splint)      -> curano le fratture delle ossa
+ *   - tourniquette          -> fermano i sanguinamenti
+ * Al drop parte una progressbar; a fine applicazione il server valida,
+ * consuma un uso dell'item e cura la condizione.
  */
 
 'use strict';
 
 window.HealthPanel = (function () {
     let isOpen = false;
-    let data = null;        // { fractures, zones, splints, severityLabels, debug }
+    let data = null;        // { fractures, bleedings, zones, splints, tourniquets, ... }
     let fractures = {};
-    let busy = false;       // applicazione stecca in corso
+    let bleedings = {};
+    let busy = false;       // applicazione trattamento in corso
     let progressRaf = null;
     let progressTimeout = null;
 
@@ -25,20 +31,49 @@ window.HealthPanel = (function () {
     ];
 
     // Geometria delle zone sullo stickman (stesso viewBox 200x420 del
-    // pannello Utilità per coerenza visiva). shapes = array di forme SVG.
+    // pannello Utilità per coerenza visiva).
+    //   shapes = forme SVG cliccabili/colorabili
+    //   drop   = punto di ancoraggio della goccia di sanguinamento
     const ZONE_SHAPES = {
-        head: [{ type: 'ellipse', cx: 100, cy: 48, rx: 26, ry: 30 }],
-        lungs: [
-            { type: 'rect', x: 72, y: 98, w: 25, h: 40, rx: 8 },
-            { type: 'rect', x: 103, y: 98, w: 25, h: 40, rx: 8 },
-        ],
-        heart: [{ type: 'circle', cx: 94, cy: 116, r: 9 }],
-        stomach: [{ type: 'rect', x: 72, y: 145, w: 56, h: 32, rx: 8 }],
-        intestine: [{ type: 'rect', x: 72, y: 182, w: 56, h: 38, rx: 8 }],
-        left_arm: [{ type: 'rect', x: 38, y: 112, w: 28, h: 180, rx: 10 }],
-        right_arm: [{ type: 'rect', x: 134, y: 112, w: 28, h: 180, rx: 10 }],
-        left_leg: [{ type: 'rect', x: 56, y: 268, w: 42, h: 142, rx: 10 }],
-        right_leg: [{ type: 'rect', x: 102, y: 268, w: 42, h: 142, rx: 10 }],
+        head: {
+            shapes: [{ type: 'ellipse', cx: 100, cy: 48, rx: 26, ry: 30 }],
+            drop: { x: 130, y: 40 },
+        },
+        lungs: {
+            shapes: [
+                { type: 'rect', x: 72, y: 98, w: 25, h: 40, rx: 8 },
+                { type: 'rect', x: 103, y: 98, w: 25, h: 40, rx: 8 },
+            ],
+            drop: { x: 134, y: 100 },
+        },
+        heart: {
+            shapes: [{ type: 'circle', cx: 94, cy: 116, r: 9 }],
+            drop: { x: 80, y: 108 },
+        },
+        stomach: {
+            shapes: [{ type: 'rect', x: 72, y: 145, w: 56, h: 32, rx: 8 }],
+            drop: { x: 134, y: 152 },
+        },
+        intestine: {
+            shapes: [{ type: 'rect', x: 72, y: 182, w: 56, h: 38, rx: 8 }],
+            drop: { x: 134, y: 192 },
+        },
+        left_arm: {
+            shapes: [{ type: 'rect', x: 38, y: 112, w: 28, h: 180, rx: 10 }],
+            drop: { x: 32, y: 160 },
+        },
+        right_arm: {
+            shapes: [{ type: 'rect', x: 134, y: 112, w: 28, h: 180, rx: 10 }],
+            drop: { x: 168, y: 160 },
+        },
+        left_leg: {
+            shapes: [{ type: 'rect', x: 56, y: 268, w: 42, h: 142, rx: 10 }],
+            drop: { x: 48, y: 310 },
+        },
+        right_leg: {
+            shapes: [{ type: 'rect', x: 102, y: 268, w: 42, h: 142, rx: 10 }],
+            drop: { x: 152, y: 310 },
+        },
     };
 
     const svgNS = 'http://www.w3.org/2000/svg';
@@ -99,6 +134,18 @@ window.HealthPanel = (function () {
         return el;
     }
 
+    // Goccia di sangue posizionata sull'ancoraggio della zona
+    function createDropletElement(anchor) {
+        const drop = document.createElementNS(svgNS, 'path');
+        drop.setAttribute('d',
+            'M0,-8 C4,-3 7,0.5 7,3.5 A7,7 0 1 1 -7,3.5 C-7,0.5 -4,-3 0,-8 Z');
+        drop.setAttribute('transform',
+            'translate(' + anchor.x + ',' + anchor.y + ')');
+        drop.setAttribute('class', 'health-drop');
+        drop.style.display = 'none';
+        return drop;
+    }
+
     function buildSVG() {
         const container = document.getElementById('health-svg-container');
         if (!container) return;
@@ -112,8 +159,8 @@ window.HealthPanel = (function () {
 
         // Gruppi zona: ogni zona ha data-hzone e riceve classi di stato
         for (const zoneKey of ZONE_ORDER) {
-            const shapes = ZONE_SHAPES[zoneKey];
-            if (!shapes) continue;
+            const zoneGeom = ZONE_SHAPES[zoneKey];
+            if (!zoneGeom) continue;
 
             const g = document.createElementNS(svgNS, 'g');
             g.setAttribute('class', 'health-zone');
@@ -124,8 +171,11 @@ window.HealthPanel = (function () {
             title.textContent = zoneDef ? zoneDef.label : zoneKey;
             g.appendChild(title);
 
-            for (const shape of shapes) {
+            for (const shape of zoneGeom.shapes) {
                 g.appendChild(createShapeElement(shape));
+            }
+            if (zoneGeom.drop) {
+                g.appendChild(createDropletElement(zoneGeom.drop));
             }
             svg.appendChild(g);
         }
@@ -141,10 +191,25 @@ window.HealthPanel = (function () {
     function renderZones() {
         document.querySelectorAll('.health-zone').forEach(function (g) {
             const zoneKey = g.dataset.hzone;
+
+            // Frattura: riempimento della zona
             g.classList.remove('hz-media', 'hz-grave');
-            const sev = fractures[zoneKey];
-            if (sev === 'media') g.classList.add('hz-media');
-            else if (sev === 'grave') g.classList.add('hz-grave');
+            const frSev = fractures[zoneKey];
+            if (frSev === 'media') g.classList.add('hz-media');
+            else if (frSev === 'grave') g.classList.add('hz-grave');
+
+            // Sanguinamento: goccia colorata
+            const drop = g.querySelector('.health-drop');
+            if (drop) {
+                drop.classList.remove('hd-light', 'hd-medium', 'hd-heavy');
+                const blSev = bleedings[zoneKey];
+                if (blSev) {
+                    drop.classList.add('hd-' + blSev);
+                    drop.style.display = '';
+                } else {
+                    drop.style.display = 'none';
+                }
+            }
         });
     }
 
@@ -157,27 +222,49 @@ window.HealthPanel = (function () {
             const zoneDef = data.zones ? data.zones[zoneKey] : null;
             if (!zoneDef) continue;
 
-            const sev = fractures[zoneKey];
-            // Gli organi non ancora gestiti compaiono solo se danneggiati
-            if (!zoneDef.breakable && !sev) continue;
+            const frSev = fractures[zoneKey];
+            const blSev = bleedings[zoneKey];
+
+            // Gli organi non ancora gestiti compaiono solo se hanno una condizione
+            if (!zoneDef.breakable && !frSev && !blSev) continue;
 
             const row = document.createElement('div');
-            row.className = 'health-row' + (sev ? ' health-row-' + sev : '');
+            let rowClass = 'health-row';
+            if (blSev === 'heavy' || frSev === 'grave') rowClass += ' health-row-grave';
+            else if (blSev || frSev) rowClass += ' health-row-media';
+            row.className = rowClass;
 
             const name = document.createElement('span');
             name.className = 'health-row-name';
             name.textContent = zoneDef.label;
             row.appendChild(name);
 
-            const status = document.createElement('span');
-            status.className = 'health-row-status';
-            if (sev) {
-                status.textContent = (data.severityLabels && data.severityLabels[sev]) || sev;
-            } else {
-                status.textContent = 'OK';
-            }
-            row.appendChild(status);
+            const statusWrap = document.createElement('span');
+            statusWrap.className = 'health-row-statuses';
 
+            if (!frSev && !blSev) {
+                const okEl = document.createElement('span');
+                okEl.className = 'health-row-status';
+                okEl.textContent = 'OK';
+                statusWrap.appendChild(okEl);
+            } else {
+                if (frSev) {
+                    const frEl = document.createElement('span');
+                    frEl.className = 'health-row-status hs-fracture-' + frSev;
+                    frEl.textContent =
+                        (data.severityLabels && data.severityLabels[frSev]) || frSev;
+                    statusWrap.appendChild(frEl);
+                }
+                if (blSev) {
+                    const blEl = document.createElement('span');
+                    blEl.className = 'health-row-status hs-bleed-' + blSev;
+                    blEl.textContent =
+                        (data.bleedingLabels && data.bleedingLabels[blSev]) || blSev;
+                    statusWrap.appendChild(blEl);
+                }
+            }
+
+            row.appendChild(statusWrap);
             list.appendChild(row);
         }
     }
@@ -197,6 +284,7 @@ window.HealthPanel = (function () {
 
         data = healthData || {};
         fractures = data.fractures || {};
+        bleedings = data.bleedings || {};
         busy = false;
 
         buildSVG();
@@ -217,8 +305,9 @@ window.HealthPanel = (function () {
         clearDragHighlights();
     }
 
-    function update(newFractures) {
+    function update(newFractures, newBleedings) {
         fractures = newFractures || {};
+        bleedings = newBleedings || {};
         if (isOpen) render();
     }
 
@@ -226,45 +315,70 @@ window.HealthPanel = (function () {
     // DRAG & DROP (chiamato da drag.js)
     // ============================================
 
-    function isSplintItem(itemName) {
-        return !!(data && data.splints && data.splints[itemName]);
+    // Ritorna 'splint' | 'tourniquet' | null per un item
+    function treatmentKindFor(itemName) {
+        if (!data) return null;
+        if (data.splints && data.splints[itemName]) return 'splint';
+        if (data.tourniquets && data.tourniquets[itemName]) return 'tourniquet';
+        return null;
     }
 
-    // Una zona accetta il drop solo se è un osso rotto e non c'è
-    // un'applicazione già in corso
-    function canDropOn(zoneKey) {
-        if (!isOpen || busy) return false;
+    function isTreatmentItem(itemName) {
+        return treatmentKindFor(itemName) !== null;
+    }
+
+    // Una zona accetta il drop solo se ha la condizione curata dal trattamento
+    function canDropOn(zoneKey, kind) {
+        if (!isOpen || busy || !kind) return false;
         const zoneDef = data && data.zones ? data.zones[zoneKey] : null;
-        return !!(zoneDef && zoneDef.breakable && fractures[zoneKey]);
+        if (!zoneDef) return false;
+        if (kind === 'splint') {
+            return !!(zoneDef.breakable && fractures[zoneKey]);
+        }
+        return !!bleedings[zoneKey]; // tourniquet
     }
 
-    function getZoneAt(x, y) {
+    function getZoneAt(x, y, itemName) {
         if (!isOpen) return null;
+        const kind = treatmentKindFor(itemName);
+        if (!kind) return null;
+
+        // Le zone possono sovrapporsi (es. cuore dentro il petto): tra le
+        // candidate si sceglie quella con l'area piu' piccola
+        let best = null;
+        let bestArea = Infinity;
         const zones = document.querySelectorAll('.health-zone');
         for (const g of zones) {
             const rect = g.getBoundingClientRect();
             if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
-                if (canDropOn(g.dataset.hzone)) return g.dataset.hzone;
+                if (canDropOn(g.dataset.hzone, kind)) {
+                    const area = rect.width * rect.height;
+                    if (area < bestArea) {
+                        best = g.dataset.hzone;
+                        bestArea = area;
+                    }
+                }
             }
         }
-        return null;
+        return best;
     }
 
     function highlightForDrag(itemName) {
-        if (!isOpen || !isSplintItem(itemName)) return;
+        const kind = treatmentKindFor(itemName);
+        if (!isOpen || !kind) return;
         document.querySelectorAll('.health-zone').forEach(function (g) {
-            if (canDropOn(g.dataset.hzone)) {
+            if (canDropOn(g.dataset.hzone, kind)) {
                 g.classList.add('hz-droppable');
             }
         });
     }
 
-    function hoverAt(x, y) {
+    function hoverAt(x, y, itemName) {
         if (!isOpen) return;
         document.querySelectorAll('.health-zone.hz-hover').forEach(function (g) {
             g.classList.remove('hz-hover');
         });
-        const zoneKey = getZoneAt(x, y);
+        const zoneKey = getZoneAt(x, y, itemName);
         if (zoneKey) {
             const g = document.querySelector('.health-zone[data-hzone="' + zoneKey + '"]');
             if (g) g.classList.add('hz-hover');
@@ -279,15 +393,17 @@ window.HealthPanel = (function () {
     }
 
     // ============================================
-    // PROGRESSBAR APPLICAZIONE STECCA
+    // PROGRESSBAR APPLICAZIONE TRATTAMENTO
     // ============================================
 
     function startProgress(zoneKey, itemName) {
         if (!isOpen || busy) return;
         busy = true;
 
-        const splint = data.splints[itemName] || {};
-        const duration = splint.duration || 5000;
+        const kind = treatmentKindFor(itemName);
+        const cfgSource = kind === 'tourniquet' ? data.tourniquets : data.splints;
+        const treatCfg = (cfgSource && cfgSource[itemName]) || {};
+        const duration = treatCfg.duration || 5000;
         const zoneDef = data.zones ? data.zones[zoneKey] : null;
         const itemDef = window.CNBT ? window.CNBT.getItemDef(itemName) : null;
 
@@ -296,7 +412,7 @@ window.HealthPanel = (function () {
         const fill = document.getElementById('health-progress-fill');
         if (!wrap || !fill) return;
 
-        label.textContent = (itemDef ? itemDef.label : 'Stecca') + ' → ' +
+        label.textContent = (itemDef ? itemDef.label : 'Trattamento') + ' → ' +
             (zoneDef ? zoneDef.label : zoneKey);
         fill.style.width = '0%';
         fill.classList.remove('hp-fail');
@@ -310,7 +426,7 @@ window.HealthPanel = (function () {
                 progressRaf = requestAnimationFrame(step);
             } else {
                 progressRaf = null;
-                // La barra è piena: si attende l'esito del server (splintResult)
+                // La barra è piena: si attende l'esito del server (treatmentResult)
             }
         }
         progressRaf = requestAnimationFrame(step);
@@ -364,7 +480,8 @@ window.HealthPanel = (function () {
         update: update,
         isOpen: function () { return isOpen; },
         isBusy: function () { return busy; },
-        isSplintItem: isSplintItem,
+        isTreatmentItem: isTreatmentItem,
+        treatmentKindFor: treatmentKindFor,
         getZoneAt: getZoneAt,
         highlightForDrag: highlightForDrag,
         hoverAt: hoverAt,

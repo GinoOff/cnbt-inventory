@@ -365,23 +365,29 @@ end)
 -- BRIDGE CNBT-HEALTH (pannello salute)
 -- ============================================
 
--- Stecca trascinata su una zona dello stickman -> inoltra a cnbt-health
-RegisterNUICallback('applySplint', function(data, cb)
-    TriggerEvent('cnbt-health:applySplintRequest', data)
+-- Trattamento (stecca/tourniquette) trascinato su una zona dello stickman
+-- -> inoltra a cnbt-health
+RegisterNUICallback('applyTreatment', function(data, cb)
+    TriggerEvent('cnbt-health:applyTreatmentRequest', data)
     cb('ok')
 end)
 
--- cnbt-health ha sincronizzato lo stato fratture -> aggiorna il pannello NUI
-AddEventHandler('cnbt-health:stateChanged', function(fractures)
+-- cnbt-health ha sincronizzato lo stato (fratture + sanguinamenti)
+-- -> aggiorna il pannello NUI
+AddEventHandler('cnbt-health:stateChanged', function(state)
     if isOpen then
-        SendNUIMessage({ type = 'healthUpdate', fractures = fractures })
+        SendNUIMessage({
+            type = 'healthUpdate',
+            fractures = state and state.fractures or {},
+            bleedings = state and state.bleedings or {},
+        })
     end
 end)
 
--- Esito applicazione stecca -> chiude la progressbar e aggiorna l'item
-AddEventHandler('cnbt-health:splintResult', function(result)
+-- Esito applicazione trattamento -> chiude la progressbar e aggiorna l'item
+AddEventHandler('cnbt-health:treatmentResult', function(result)
     if isOpen then
-        SendNUIMessage({ type = 'splintResult', data = result })
+        SendNUIMessage({ type = 'treatmentResult', data = result })
     end
 end)
 
