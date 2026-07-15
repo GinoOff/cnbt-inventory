@@ -71,16 +71,35 @@ Items['surkit'] = {
     category    = 'medical',
 }
 
+-- Stecche (cnbt-health): si usano trascinandole sullo stickman del pannello
+-- salute, non dal menu contestuale. Gli usi residui sono in metadata.uses;
+-- il campo `uses` qui serve alla NUI per il badge e deve combaciare con
+-- Config.Splints in cnbt-health/config.lua.
 Items['splint'] = {
-    label       = 'Splint',
-    description = 'A splint for stabilizing fractures.',
+    label       = 'Stecca di Base',
+    description = 'Stecca per stabilizzare le fratture. 2 utilizzi.',
     weight      = 300,
     sizeX       = 1,
     sizeY       = 2,
-    stackable   = true,
-    maxStack    = 4,
-    usable      = true,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 2,
     image       = 'splint.png',
+    category    = 'medical',
+}
+
+Items['splint_advanced'] = {
+    label       = 'Stecca Avanzata',
+    description = 'Stecca professionale, piu\' rapida da applicare. 4 utilizzi.',
+    weight      = 600,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 4,
+    image       = 'splint_advanced.png',
     category    = 'medical',
 }
 

@@ -105,6 +105,13 @@ window.CNBT = (function () {
             case 'equipSlotSuccess':
                 handleEquipSlotSuccess(msg.data);
                 break;
+            // Health panel (cnbt-health integration)
+            case 'healthUpdate':
+                if (window.HealthPanel) window.HealthPanel.update(msg.fractures);
+                break;
+            case 'splintResult':
+                handleSplintResult(msg.data);
+                break;
             // Gunsmith messages
             case 'openGunsmith':
             case 'closeGunsmith':
@@ -217,6 +224,15 @@ window.CNBT = (function () {
             hideExternalInventory();
         }
 
+        // Health panel (only if cnbt-health is running and sent data)
+        if (window.HealthPanel) {
+            if (msg.healthData) {
+                window.HealthPanel.open(msg.healthData);
+            } else {
+                window.HealthPanel.close();
+            }
+        }
+
         updateWeightDisplays();
         clearSelection();
         hideContextMenu();
@@ -242,6 +258,9 @@ window.CNBT = (function () {
         closeAnimTimeout = setTimeout(function () {
             container.classList.add('hidden');
             container.classList.remove('slide-out');
+
+            // Hide the health panel after its slide-out animation finished
+            if (window.HealthPanel) window.HealthPanel.close();
 
             if (playerGrid) { playerGrid.destroy(); playerGrid = null; }
             if (backpackGrid) { backpackGrid.destroy(); backpackGrid = null; }
@@ -384,6 +403,38 @@ window.CNBT = (function () {
             const slotId = data.slot === 'armor' ? 'equip-armor' : 'equip-parachute';
             if (window.UtilityPanel) {
                 window.UtilityPanel.renderEquipSlot(slotId, data.item, def);
+            }
+        }
+        updateWeightDisplays();
+    }
+
+    // ============================================
+    // HEALTH PANEL (cnbt-health)
+    // ============================================
+
+    // Esito dell'applicazione di una stecca: chiude la progressbar e, in caso
+    // di successo, scala gli usi dell'item (o lo rimuove se esaurito).
+    function handleSplintResult(d) {
+        if (!d) return;
+        if (window.HealthPanel) window.HealthPanel.finishProgress(!!d.ok);
+        if (!d.ok || !d.grid || !d.itemIndex) return;
+
+        const grid = getGrid(d.grid);
+        if (!grid) return;
+
+        const idx = d.itemIndex - 1;
+        const item = grid.items[idx];
+        if (!item || item.name !== d.itemName) return;
+
+        if (d.removed) {
+            grid.removeItem(idx);
+        } else {
+            item.metadata = item.metadata || {};
+            item.metadata.uses = d.usesLeft;
+            const usesEl = item.el ? item.el.querySelector('.item-uses') : null;
+            if (usesEl) {
+                const def = itemDefs[item.name];
+                usesEl.textContent = d.usesLeft + '/' + ((def && def.uses) || d.usesLeft);
             }
         }
         updateWeightDisplays();

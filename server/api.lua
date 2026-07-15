@@ -274,6 +274,64 @@ local function AddItemToStash(stashId, itemName, count, metadata)
     return true
 end
 
+-- ============================================
+-- ITEM AT INDEX / USI MULTIPLI (integrazione cnbt-health)
+-- ============================================
+
+local function resolveGridItems(inv, gridLabel)
+    if gridLabel == 'backpack' and inv.backpack then
+        return inv.backpack.items
+    end
+    return inv.items
+end
+
+-- Get a copy of the item at a specific grid position (1-indexed).
+-- gridLabel: 'player' or 'backpack'
+local function GetItemAt(identifier, gridLabel, itemIndex)
+    local inv = loadInventory(identifier, 'player')
+    local item = resolveGridItems(inv, gridLabel)[itemIndex]
+    if not item then return nil end
+    return {
+        name = item.name,
+        count = item.count or 1,
+        metadata = item.metadata or {},
+        x = item.x,
+        y = item.y,
+    }
+end
+
+-- Consume one "use" of a multi-use item (e.g. splints).
+-- The remaining uses live in item.metadata.uses; when they reach 0 the item
+-- is removed from the grid. defaultUses initializes the counter the first
+-- time (item defs may declare a matching `uses` field for the NUI badge).
+-- Returns: consumed(bool), removed(bool), usesLeft(number)
+local function ConsumeItemUse(identifier, gridLabel, itemIndex, expectedName, defaultUses)
+    local inv = loadInventory(identifier, 'player')
+    local gridItems = resolveGridItems(inv, gridLabel)
+    local item = gridItems[itemIndex]
+
+    -- The item must still be there and be what the caller expects
+    if not item or item.name ~= expectedName then
+        return false, false, 0
+    end
+
+    item.metadata = item.metadata or {}
+    local uses = tonumber(item.metadata.uses) or tonumber(defaultUses) or 1
+    uses = uses - 1
+
+    local removed = false
+    if uses <= 0 then
+        table.remove(gridItems, itemIndex)
+        removed = true
+        uses = 0
+    else
+        item.metadata.uses = uses
+    end
+
+    markDirty(identifier, 'player')
+    return true, removed, uses
+end
+
 -- Register exports
 exports('AddItem', AddItem)
 exports('RemoveItem', RemoveItem)
@@ -286,5 +344,7 @@ exports('ClearInventory', ClearInventory)
 exports('OpenStash', OpenStash)
 exports('AddItemToStash', AddItemToStash)
 exports('RegisterStash', RegisterStash)
+exports('GetItemAt', GetItemAt)
+exports('ConsumeItemUse', ConsumeItemUse)
 
 print('[cnbt-inventory] API exports registered')

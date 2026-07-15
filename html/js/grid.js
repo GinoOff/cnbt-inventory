@@ -190,6 +190,16 @@ class InventoryGrid {
             el.appendChild(count);
         }
 
+        // Remaining uses badge (multi-use items like splints)
+        if (def.uses != null) {
+            const uses = (item.metadata && item.metadata.uses != null)
+                ? item.metadata.uses : def.uses;
+            const usesEl = document.createElement('span');
+            usesEl.className = 'item-uses';
+            usesEl.textContent = `${uses}/${def.uses}`;
+            el.appendChild(usesEl);
+        }
+
         // Rotation indicator
         if (item.rotated) {
             const rot = document.createElement('span');

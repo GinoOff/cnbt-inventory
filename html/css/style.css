@@ -2652,3 +2652,227 @@ body {
     color: var(--text-dim);
     letter-spacing: 0.8px;
 }
+
+/* ============================================
+   HEALTH PANEL (integrazione cnbt-health)
+   Pannello fisso a sinistra dello schermo, aperto
+   insieme all'inventario. Stickman con zone corpo
+   colorate per stato frattura + progressbar stecca.
+   ============================================ */
+
+#health-panel {
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 300px;
+    z-index: 101;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Entra/esce da sinistra insieme alle animazioni dell'inventario */
+#inventory-container.slide-in #health-panel {
+    animation: healthSlideInLeft var(--slide-duration) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+#inventory-container.slide-out #health-panel {
+    animation: healthSlideOutLeft var(--slide-duration) cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+#inventory-container.hotbar-only #health-panel {
+    display: none !important;
+}
+
+@keyframes healthSlideInLeft {
+    from {
+        transform: translate3d(-130%, -50%, 0);
+        opacity: 0;
+    }
+    to {
+        transform: translate3d(0, -50%, 0);
+        opacity: 1;
+    }
+}
+
+@keyframes healthSlideOutLeft {
+    from {
+        transform: translate3d(0, -50%, 0);
+        opacity: 1;
+    }
+    to {
+        transform: translate3d(-130%, -50%, 0);
+        opacity: 0;
+    }
+}
+
+#health-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 14px 10px;
+    gap: 10px;
+}
+
+#health-svg-container {
+    width: 190px;
+}
+
+.health-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Zone del corpo: neutre di default, colorate per gravita' */
+.health-zone ellipse,
+.health-zone circle,
+.health-zone rect {
+    fill: rgba(200, 207, 168, 0.05);
+    stroke: rgba(200, 207, 168, 0.22);
+    stroke-width: 1;
+    transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+/* Frattura composta (media): ambra */
+.health-zone.hz-media ellipse,
+.health-zone.hz-media circle,
+.health-zone.hz-media rect {
+    fill: rgba(240, 201, 106, 0.32);
+    stroke: var(--select-color);
+    stroke-width: 1.5;
+}
+
+/* Frattura scomposta (grave): rossa, pulsante */
+.health-zone.hz-grave ellipse,
+.health-zone.hz-grave circle,
+.health-zone.hz-grave rect {
+    fill: rgba(224, 96, 96, 0.38);
+    stroke: var(--danger);
+    stroke-width: 1.5;
+    animation: hzPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes hzPulse {
+    0%, 100% { fill-opacity: 1; }
+    50% { fill-opacity: 0.45; }
+}
+
+/* Zona valida per il drop di una stecca durante il drag */
+.health-zone.hz-droppable ellipse,
+.health-zone.hz-droppable circle,
+.health-zone.hz-droppable rect {
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-dasharray: 5 3;
+}
+
+/* Zona sotto il cursore durante il drag */
+.health-zone.hz-hover ellipse,
+.health-zone.hz-hover circle,
+.health-zone.hz-hover rect {
+    fill: rgba(156, 198, 119, 0.45);
+    stroke: var(--success);
+    stroke-width: 2.5;
+    stroke-dasharray: none;
+}
+
+/* Lista stato zone sotto lo stickman */
+#health-zone-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.health-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 10px;
+    background: rgba(8, 11, 9, 0.55);
+    border-left: 2px solid rgba(200, 207, 168, 0.18);
+}
+
+.health-row-name {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.health-row-status {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--success);
+}
+
+.health-row-media {
+    border-left-color: var(--select-color);
+}
+.health-row-media .health-row-status {
+    color: var(--select-color);
+}
+
+.health-row-grave {
+    border-left-color: var(--danger);
+}
+.health-row-grave .health-row-status {
+    color: var(--danger);
+}
+
+/* Progressbar applicazione stecca */
+#health-progress {
+    padding: 8px 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+#health-progress-label {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+#health-progress-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(8, 11, 9, 0.85);
+    border: 1px solid var(--border-accent);
+    overflow: hidden;
+}
+
+#health-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--success) 0%, var(--accent) 100%);
+    box-shadow: 0 0 10px var(--success-glow);
+}
+
+#health-progress-fill.hp-fail {
+    background: var(--danger);
+    box-shadow: 0 0 10px var(--danger-glow);
+}
+
+/* Badge usi rimanenti (item multi-uso, es. stecche) */
+.grid-item .item-uses {
+    position: absolute;
+    top: 3px;
+    right: 6px;
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--select-color);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.98), 0 0 8px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: -0.3px;
+}

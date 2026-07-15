@@ -110,7 +110,17 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
             category = def.category,
             weaponHash = def.weaponHash,
             weaponClass = def.weaponClass,
+            uses = def.uses,
         }
+    end
+
+    -- Dati salute (cnbt-health): pannello sinistro con stickman e fratture
+    local healthData = nil
+    if GetResourceState('cnbt-health') == 'started' then
+        local ok, res = pcall(function()
+            return exports['cnbt-health']:GetHealthPanelData()
+        end)
+        if ok then healthData = res end
     end
 
     -- Backpack config
@@ -145,6 +155,7 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
         caseConfigs = caseConfigs,
         hotbarSlots = Config.HotbarSlots,
         colors = Config.Colors,
+        healthData = healthData,
     })
 end)
 
@@ -348,6 +359,30 @@ end)
 RegisterNUICallback('equipSlot', function(data, cb)
     TriggerServerEvent('cnbt-inventory:server:equipSlot', data)
     cb('ok')
+end)
+
+-- ============================================
+-- BRIDGE CNBT-HEALTH (pannello salute)
+-- ============================================
+
+-- Stecca trascinata su una zona dello stickman -> inoltra a cnbt-health
+RegisterNUICallback('applySplint', function(data, cb)
+    TriggerEvent('cnbt-health:applySplintRequest', data)
+    cb('ok')
+end)
+
+-- cnbt-health ha sincronizzato lo stato fratture -> aggiorna il pannello NUI
+AddEventHandler('cnbt-health:stateChanged', function(fractures)
+    if isOpen then
+        SendNUIMessage({ type = 'healthUpdate', fractures = fractures })
+    end
+end)
+
+-- Esito applicazione stecca -> chiude la progressbar e aggiorna l'item
+AddEventHandler('cnbt-health:splintResult', function(result)
+    if isOpen then
+        SendNUIMessage({ type = 'splintResult', data = result })
+    end
 end)
 
 RegisterNUICallback('useHotbarItem', function(data, cb)

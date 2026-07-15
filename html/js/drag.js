@@ -88,6 +88,12 @@ const DragSystem = (function () {
             }
         }
 
+        // Highlight fractured body zones when dragging a splint (health panel)
+        if (window.HealthPanel && window.HealthPanel.isOpen() &&
+            (gridId === 'player' || gridId === 'backpack')) {
+            window.HealthPanel.highlightForDrag(item.name);
+        }
+
         // Start render loop
         if (!rafId) {
             rafId = requestAnimationFrame(renderLoop);
@@ -117,6 +123,28 @@ const DragSystem = (function () {
         // Clear gunsmith slot highlights
         if (window.Gunsmith && window.Gunsmith.clearSlotHighlights) {
             window.Gunsmith.clearSlotHighlights();
+        }
+
+        // Check if dropped on a health panel body zone (splint application)
+        if (window.HealthPanel && window.HealthPanel.isOpen() &&
+            window.HealthPanel.isSplintItem(dragItem.item.name) &&
+            (dragItem.gridId === 'player' || dragItem.gridId === 'backpack')) {
+            const zone = window.HealthPanel.getZoneAt(e.clientX, e.clientY);
+            window.HealthPanel.clearDragHighlights();
+            if (zone) {
+                window.CNBT.nuiCallback('applySplint', {
+                    zone: zone,
+                    grid: dragItem.gridId,
+                    itemIndex: dragItem.index + 1, // Lua 1-indexed
+                    itemName: dragItem.item.name,
+                });
+                window.HealthPanel.startProgress(zone, dragItem.item.name);
+                revertDrag();
+                finishDrag();
+                return;
+            }
+        } else if (window.HealthPanel) {
+            window.HealthPanel.clearDragHighlights();
         }
 
         // Check if dropped on a gunsmith attachment slot
@@ -332,6 +360,12 @@ const DragSystem = (function () {
 
         // Equipment slot drag-over highlights
         highlightEquipSlots();
+
+        // Health panel zone hover highlight while dragging a splint
+        if (window.HealthPanel && window.HealthPanel.isOpen() &&
+            window.HealthPanel.isSplintItem(dragItem.item.name)) {
+            window.HealthPanel.hoverAt(mouseX, mouseY);
+        }
     }
 
     function highlightEquipSlots() {

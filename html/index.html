@@ -16,6 +16,30 @@
             <button id="utility-toggle-btn" class="panel-action-btn utility-toggle">Utilit&agrave;</button>
         </div>
 
+        <!-- Health panel (lato sinistro dello schermo, integrazione cnbt-health) -->
+        <div id="health-panel" class="inv-panel hidden">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <span class="panel-title">Salute</span>
+                    <span class="panel-title-chevron">&#9662;</span>
+                </div>
+            </div>
+            <div id="health-body">
+                <div id="health-svg-container">
+                    <!-- Riempito da health.js -->
+                </div>
+                <div id="health-zone-list">
+                    <!-- Riempito da health.js -->
+                </div>
+            </div>
+            <div id="health-progress" class="hidden">
+                <span id="health-progress-label"></span>
+                <div id="health-progress-track">
+                    <div id="health-progress-fill"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="inventory-panels">
             <!-- Utility panel (left side, toggled by Utilità button) -->
             <div id="utility-panel" class="inv-panel hidden">
@@ -298,6 +322,7 @@
     <script src="js/stashes.js"></script>
     <script src="js/inventories.js"></script>
     <script src="js/utility.js"></script>
+    <script src="js/health.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

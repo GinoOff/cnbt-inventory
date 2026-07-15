@@ -42,6 +42,7 @@ files {
     'html/js/gunsmith.js',
     'html/js/stashes.js',
     'html/js/utility.js',
+    'html/js/health.js',
     'html/js/inventories.js',
     'html/js/app.js',
     'html/img/*.png',
