@@ -2922,3 +2922,97 @@ body {
 .health-row-status.hs-bleed-light    { color: #e0925c; }
 .health-row-status.hs-bleed-medium   { color: #e05c5c; }
 .health-row-status.hs-bleed-heavy    { color: #b81f1f; }
+
+/* ============================================
+   HEALTH PANEL - BARRA DEL SANGUE
+   Indicatore dei ml di sangue sotto lo stickman;
+   drop target delle sacche di sangue.
+   ============================================ */
+
+#blood-bar-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 8px 8px;
+    background: rgba(8, 11, 9, 0.55);
+    border: 1px dashed transparent;
+    transition: border-color var(--transition-fast) ease,
+                box-shadow var(--transition-fast) ease;
+}
+
+#blood-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+#blood-bar-title {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+#blood-ml {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #e05c5c;
+    font-variant-numeric: tabular-nums;
+}
+
+#blood-bar-track {
+    width: 100%;
+    height: 10px;
+    background: rgba(8, 11, 9, 0.9);
+    border: 1px solid rgba(224, 96, 96, 0.25);
+    overflow: hidden;
+}
+
+#blood-bar-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #7a1626 0%, #b8283c 100%);
+    box-shadow: 0 0 8px rgba(184, 40, 60, 0.4);
+    transition: width 0.5s ease;
+}
+
+/* Sangue basso (sotto la soglia di offuscamento) */
+#blood-bar-wrap.bb-low #blood-ml {
+    color: var(--select-color);
+}
+#blood-bar-wrap.bb-low #blood-bar-fill {
+    background: linear-gradient(90deg, #8a3a16 0%, #d0703c 100%);
+    animation: bbPulse 1.6s ease-in-out infinite;
+}
+
+/* Sangue critico (vicino al dissanguamento) */
+#blood-bar-wrap.bb-critical #blood-ml {
+    color: var(--danger);
+    animation: bbPulse 0.8s ease-in-out infinite;
+}
+#blood-bar-wrap.bb-critical #blood-bar-fill {
+    background: linear-gradient(90deg, #5a0d16 0%, #e03030 100%);
+    animation: bbPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes bbPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+/* Drop target sacca di sangue durante il drag */
+#blood-bar-wrap.bb-droppable {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent-glow);
+}
+
+#blood-bar-wrap.bb-hover {
+    border-color: var(--success);
+    border-style: solid;
+    box-shadow: inset 0 0 0 1px var(--success-glow), 0 0 16px var(--success-glow);
+}

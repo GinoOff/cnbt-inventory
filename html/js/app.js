@@ -107,7 +107,7 @@ window.CNBT = (function () {
                 break;
             // Health panel (cnbt-health integration)
             case 'healthUpdate':
-                if (window.HealthPanel) window.HealthPanel.update(msg.fractures, msg.bleedings);
+                if (window.HealthPanel) window.HealthPanel.update(msg.fractures, msg.bleedings, msg.blood);
                 break;
             case 'treatmentResult':
                 handleTreatmentResult(msg.data);

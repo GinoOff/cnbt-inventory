@@ -32,28 +32,47 @@ Items['bandage'] = {
     category    = 'medical',
 }
 
+-- Sacche di sangue portatili (cnbt-health): si trascinano sulla barra del
+-- sangue del pannello salute per una trasfusione. Il campo `uses` deve
+-- combaciare con Config.BloodBags in cnbt-health/config.lua.
 Items['lblood'] = {
-    label       = 'Large Blood Bag',
-    description = 'A large blood bag for major blood loss.',
+    label       = 'Sacca di Sangue Grande',
+    description = 'Sacca di sangue da 1000 ml. 1 utilizzo.',
     weight      = 800,
     sizeX       = 2,
     sizeY       = 2,
-    stackable   = true,
-    maxStack    = 2,
-    usable      = true,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 1,
     image       = 'lblood.png',
     category    = 'medical',
 }
 
+Items['mblood'] = {
+    label       = 'Sacca di Sangue Media',
+    description = 'Sacca di sangue da 500 ml a utilizzo. 2 utilizzi.',
+    weight      = 600,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 2,
+    image       = 'mblood.png',
+    category    = 'medical',
+}
+
 Items['sblood'] = {
-    label       = 'Small Blood Bag',
-    description = 'A small blood bag for minor blood loss.',
+    label       = 'Sacca di Sangue Piccola',
+    description = 'Sacca di sangue da 250 ml a utilizzo. 3 utilizzi.',
     weight      = 400,
     sizeX       = 1,
     sizeY       = 1,
-    stackable   = true,
+    stackable   = false,
     maxStack    = 1,
-    usable      = true,
+    usable      = false,
+    uses        = 3,
     image       = 'sblood.png',
     category    = 'medical',
 }

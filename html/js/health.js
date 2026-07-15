@@ -17,9 +17,10 @@
 
 window.HealthPanel = (function () {
     let isOpen = false;
-    let data = null;        // { fractures, bleedings, zones, splints, tourniquets, ... }
+    let data = null;        // { fractures, bleedings, blood, zones, splints, tourniquets, bloodBags, ... }
     let fractures = {};
     let bleedings = {};
+    let blood = null;       // ml correnti (null = sistema sangue non disponibile)
     let busy = false;       // applicazione trattamento in corso
     let progressRaf = null;
     let progressTimeout = null;
@@ -269,9 +270,39 @@ window.HealthPanel = (function () {
         }
     }
 
+    // Barra del sangue sotto lo stickman ("quanto sangue mi resta")
+    function renderBloodBar() {
+        const wrap = document.getElementById('blood-bar-wrap');
+        if (!wrap) return;
+
+        const max = data && data.bloodMax;
+        if (blood == null || !max) {
+            wrap.classList.add('hidden');
+            return;
+        }
+        wrap.classList.remove('hidden');
+
+        const mlEl = document.getElementById('blood-ml');
+        const fill = document.getElementById('blood-bar-fill');
+        if (mlEl) mlEl.textContent = blood + ' / ' + max + ' ml';
+        if (fill) {
+            const pct = Math.max(0, Math.min(100, (blood / max) * 100));
+            fill.style.width = pct + '%';
+        }
+
+        const th = data.bloodThresholds || {};
+        wrap.classList.remove('bb-low', 'bb-critical');
+        if (th.critical != null && blood <= th.critical) {
+            wrap.classList.add('bb-critical');
+        } else if (th.warn != null && blood <= th.warn) {
+            wrap.classList.add('bb-low');
+        }
+    }
+
     function render() {
         renderZones();
         renderZoneList();
+        renderBloodBar();
     }
 
     // ============================================
@@ -285,6 +316,7 @@ window.HealthPanel = (function () {
         data = healthData || {};
         fractures = data.fractures || {};
         bleedings = data.bleedings || {};
+        blood = (typeof data.blood === 'number') ? data.blood : null;
         busy = false;
 
         buildSVG();
@@ -305,9 +337,10 @@ window.HealthPanel = (function () {
         clearDragHighlights();
     }
 
-    function update(newFractures, newBleedings) {
+    function update(newFractures, newBleedings, newBlood) {
         fractures = newFractures || {};
         bleedings = newBleedings || {};
+        if (typeof newBlood === 'number') blood = newBlood;
         if (isOpen) render();
     }
 
@@ -315,11 +348,12 @@ window.HealthPanel = (function () {
     // DRAG & DROP (chiamato da drag.js)
     // ============================================
 
-    // Ritorna 'splint' | 'tourniquet' | null per un item
+    // Ritorna 'splint' | 'tourniquet' | 'bloodbag' | null per un item
     function treatmentKindFor(itemName) {
         if (!data) return null;
         if (data.splints && data.splints[itemName]) return 'splint';
         if (data.tourniquets && data.tourniquets[itemName]) return 'tourniquet';
+        if (data.bloodBags && data.bloodBags[itemName]) return 'bloodbag';
         return null;
     }
 
@@ -327,9 +361,14 @@ window.HealthPanel = (function () {
         return treatmentKindFor(itemName) !== null;
     }
 
-    // Una zona accetta il drop solo se ha la condizione curata dal trattamento
+    // Una zona accetta il drop solo se ha la condizione curata dal trattamento.
+    // La zona virtuale 'blood' e' la barra del sangue (sacche di sangue).
     function canDropOn(zoneKey, kind) {
         if (!isOpen || busy || !kind) return false;
+        if (kind === 'bloodbag') {
+            return zoneKey === 'blood' && blood != null &&
+                data && data.bloodMax && blood < data.bloodMax;
+        }
         const zoneDef = data && data.zones ? data.zones[zoneKey] : null;
         if (!zoneDef) return false;
         if (kind === 'splint') {
@@ -342,6 +381,17 @@ window.HealthPanel = (function () {
         if (!isOpen) return null;
         const kind = treatmentKindFor(itemName);
         if (!kind) return null;
+
+        // Sacche di sangue: il drop target e' la barra del sangue
+        if (kind === 'bloodbag') {
+            const wrap = document.getElementById('blood-bar-wrap');
+            if (!wrap || wrap.classList.contains('hidden')) return null;
+            const rect = wrap.getBoundingClientRect();
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                if (canDropOn('blood', kind)) return 'blood';
+            }
+            return null;
+        }
 
         // Le zone possono sovrapporsi (es. cuore dentro il petto): tra le
         // candidate si sceglie quella con l'area piu' piccola
@@ -366,6 +416,13 @@ window.HealthPanel = (function () {
     function highlightForDrag(itemName) {
         const kind = treatmentKindFor(itemName);
         if (!isOpen || !kind) return;
+        if (kind === 'bloodbag') {
+            const wrap = document.getElementById('blood-bar-wrap');
+            if (wrap && canDropOn('blood', kind)) {
+                wrap.classList.add('bb-droppable');
+            }
+            return;
+        }
         document.querySelectorAll('.health-zone').forEach(function (g) {
             if (canDropOn(g.dataset.hzone, kind)) {
                 g.classList.add('hz-droppable');
@@ -378,8 +435,13 @@ window.HealthPanel = (function () {
         document.querySelectorAll('.health-zone.hz-hover').forEach(function (g) {
             g.classList.remove('hz-hover');
         });
+        const barWrap = document.getElementById('blood-bar-wrap');
+        if (barWrap) barWrap.classList.remove('bb-hover');
+
         const zoneKey = getZoneAt(x, y, itemName);
-        if (zoneKey) {
+        if (zoneKey === 'blood') {
+            if (barWrap) barWrap.classList.add('bb-hover');
+        } else if (zoneKey) {
             const g = document.querySelector('.health-zone[data-hzone="' + zoneKey + '"]');
             if (g) g.classList.add('hz-hover');
         }
@@ -390,6 +452,8 @@ window.HealthPanel = (function () {
             .forEach(function (g) {
                 g.classList.remove('hz-droppable', 'hz-hover');
             });
+        const barWrap = document.getElementById('blood-bar-wrap');
+        if (barWrap) barWrap.classList.remove('bb-droppable', 'bb-hover');
     }
 
     // ============================================
@@ -401,7 +465,9 @@ window.HealthPanel = (function () {
         busy = true;
 
         const kind = treatmentKindFor(itemName);
-        const cfgSource = kind === 'tourniquet' ? data.tourniquets : data.splints;
+        let cfgSource = data.splints;
+        if (kind === 'tourniquet') cfgSource = data.tourniquets;
+        else if (kind === 'bloodbag') cfgSource = data.bloodBags;
         const treatCfg = (cfgSource && cfgSource[itemName]) || {};
         const duration = treatCfg.duration || 5000;
         const zoneDef = data.zones ? data.zones[zoneKey] : null;
@@ -412,8 +478,9 @@ window.HealthPanel = (function () {
         const fill = document.getElementById('health-progress-fill');
         if (!wrap || !fill) return;
 
-        label.textContent = (itemDef ? itemDef.label : 'Trattamento') + ' → ' +
-            (zoneDef ? zoneDef.label : zoneKey);
+        const zoneLabel = zoneKey === 'blood' ? 'Sangue'
+            : (zoneDef ? zoneDef.label : zoneKey);
+        label.textContent = (itemDef ? itemDef.label : 'Trattamento') + ' → ' + zoneLabel;
         fill.style.width = '0%';
         fill.classList.remove('hp-fail');
         wrap.classList.remove('hidden');

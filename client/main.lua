@@ -372,7 +372,7 @@ RegisterNUICallback('applyTreatment', function(data, cb)
     cb('ok')
 end)
 
--- cnbt-health ha sincronizzato lo stato (fratture + sanguinamenti)
+-- cnbt-health ha sincronizzato lo stato (fratture + sanguinamenti + sangue)
 -- -> aggiorna il pannello NUI
 AddEventHandler('cnbt-health:stateChanged', function(state)
     if isOpen then
@@ -380,6 +380,7 @@ AddEventHandler('cnbt-health:stateChanged', function(state)
             type = 'healthUpdate',
             fractures = state and state.fractures or {},
             bleedings = state and state.bleedings or {},
+            blood = state and state.blood or nil,
         })
     end
 end)
