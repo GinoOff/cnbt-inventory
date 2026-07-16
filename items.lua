@@ -77,16 +77,48 @@ Items['sblood'] = {
     category    = 'medical',
 }
 
+-- Kit di chirurgia (cnbt-health): si trascinano sull'organo danneggiato
+-- dello stickman (polmoni, stomaco) per operare. Il campo `uses` deve
+-- combaciare con Config.SurgeryKits in cnbt-health/config.lua.
 Items['surkit'] = {
-    label       = 'Surgical Kit',
-    description = 'A surgical kit for advanced medical procedures.',
+    label       = 'Kit da Sutura da Campo',
+    description = 'Kit di sutura essenziale per interventi d\'emergenza. 2 utilizzi.',
+    weight      = 800,
+    sizeX       = 1,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 2,
+    image       = 'surkit.png',
+    category    = 'medical',
+}
+
+Items['surkit_portable'] = {
+    label       = 'Kit Chirurgico Portatile',
+    description = 'Kit chirurgico compatto per interventi sul campo. 3 utilizzi.',
     weight      = 1200,
     sizeX       = 2,
     sizeY       = 2,
     stackable   = false,
     maxStack    = 1,
-    usable      = true,
-    image       = 'surkit.png',
+    usable      = false,
+    uses        = 3,
+    image       = 'surkit_portable.png',
+    category    = 'medical',
+}
+
+Items['surkit_full'] = {
+    label       = 'Kit di Sutura e Chirurgia',
+    description = 'Kit chirurgico completo di livello ospedaliero. 5 utilizzi.',
+    weight      = 1800,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    uses        = 5,
+    image       = 'surkit_full.png',
     category    = 'medical',
 }
 

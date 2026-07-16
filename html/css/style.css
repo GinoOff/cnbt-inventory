@@ -3101,3 +3101,29 @@ body {
     background: linear-gradient(90deg, #5a0d16 0%, #e03030 100%);
     animation: bbPulse 0.8s ease-in-out infinite;
 }
+
+/* ============================================
+   HEALTH PANEL - DANNI AGLI ORGANI
+   Riempimento viola per gli organi danneggiati
+   (nausea = fisso, semi-asfissia/vomito = pulsante).
+   ============================================ */
+
+.health-zone.hz-organ-media ellipse,
+.health-zone.hz-organ-media circle,
+.health-zone.hz-organ-media rect {
+    fill: rgba(168, 100, 220, 0.30);
+    stroke: #a864dc;
+    stroke-width: 1.5;
+}
+
+.health-zone.hz-organ-grave ellipse,
+.health-zone.hz-organ-grave circle,
+.health-zone.hz-organ-grave rect {
+    fill: rgba(190, 90, 255, 0.42);
+    stroke: #c07cf0;
+    stroke-width: 1.5;
+    animation: hzPulse 1.2s ease-in-out infinite;
+}
+
+.health-row-status.hs-organ-media { color: #a864dc; }
+.health-row-status.hs-organ-grave { color: #c07cf0; }

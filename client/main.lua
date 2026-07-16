@@ -380,6 +380,7 @@ AddEventHandler('cnbt-health:stateChanged', function(state)
             type = 'healthUpdate',
             fractures = state and state.fractures or {},
             bleedings = state and state.bleedings or {},
+            organs = state and state.organs or {},
             blood = state and state.blood or nil,
             hunger = state and state.hunger or nil,
             thirst = state and state.thirst or nil,

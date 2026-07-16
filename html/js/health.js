@@ -20,6 +20,7 @@ window.HealthPanel = (function () {
     let data = null;        // { fractures, bleedings, blood, zones, splints, tourniquets, bloodBags, ... }
     let fractures = {};
     let bleedings = {};
+    let organs = {};        // { zone: 'damaged' | 'media' | 'grave' }
     let blood = null;       // ml correnti (null = sistema sangue non disponibile)
     let hunger = null;      // % fame (null = esx_status non disponibile)
     let thirst = null;      // % sete
@@ -195,11 +196,17 @@ window.HealthPanel = (function () {
         document.querySelectorAll('.health-zone').forEach(function (g) {
             const zoneKey = g.dataset.hzone;
 
-            // Frattura: riempimento della zona
-            g.classList.remove('hz-media', 'hz-grave');
+            // Frattura: riempimento della zona (ambra/rosso)
+            g.classList.remove('hz-media', 'hz-grave', 'hz-organ-media', 'hz-organ-grave');
             const frSev = fractures[zoneKey];
             if (frSev === 'media') g.classList.add('hz-media');
             else if (frSev === 'grave') g.classList.add('hz-grave');
+
+            // Danno organo: riempimento viola (media = nausea, il resto pulsa)
+            const orgSev = organs[zoneKey];
+            if (orgSev) {
+                g.classList.add(orgSev === 'media' ? 'hz-organ-media' : 'hz-organ-grave');
+            }
 
             // Sanguinamento: goccia colorata
             const drop = g.querySelector('.health-drop');
@@ -227,14 +234,18 @@ window.HealthPanel = (function () {
 
             const frSev = fractures[zoneKey];
             const blSev = bleedings[zoneKey];
+            const orgSev = organs[zoneKey];
 
-            // Gli organi non ancora gestiti compaiono solo se hanno una condizione
-            if (!zoneDef.breakable && !frSev && !blSev) continue;
+            // Gli organi compaiono solo se hanno una condizione
+            if (!zoneDef.breakable && !frSev && !blSev && !orgSev) continue;
 
             const row = document.createElement('div');
             let rowClass = 'health-row';
-            if (blSev === 'heavy' || frSev === 'grave') rowClass += ' health-row-grave';
-            else if (blSev || frSev) rowClass += ' health-row-media';
+            if (blSev === 'heavy' || frSev === 'grave' || (orgSev && orgSev !== 'media')) {
+                rowClass += ' health-row-grave';
+            } else if (blSev || frSev || orgSev) {
+                rowClass += ' health-row-media';
+            }
             row.className = rowClass;
 
             const name = document.createElement('span');
@@ -245,7 +256,7 @@ window.HealthPanel = (function () {
             const statusWrap = document.createElement('span');
             statusWrap.className = 'health-row-statuses';
 
-            if (!frSev && !blSev) {
+            if (!frSev && !blSev && !orgSev) {
                 const okEl = document.createElement('span');
                 okEl.className = 'health-row-status';
                 okEl.textContent = 'OK';
@@ -257,6 +268,14 @@ window.HealthPanel = (function () {
                     frEl.textContent =
                         (data.severityLabels && data.severityLabels[frSev]) || frSev;
                     statusWrap.appendChild(frEl);
+                }
+                if (orgSev) {
+                    const orgEl = document.createElement('span');
+                    orgEl.className = 'health-row-status hs-organ-' +
+                        (orgSev === 'media' ? 'media' : 'grave');
+                    const labels = data.organLabels && data.organLabels[zoneKey];
+                    orgEl.textContent = (labels && labels[orgSev]) || orgSev;
+                    statusWrap.appendChild(orgEl);
                 }
                 if (blSev) {
                     const blEl = document.createElement('span');
@@ -355,6 +374,7 @@ window.HealthPanel = (function () {
         data = healthData || {};
         fractures = data.fractures || {};
         bleedings = data.bleedings || {};
+        organs = data.organs || {};
         blood = (typeof data.blood === 'number') ? data.blood : null;
         hunger = (typeof data.hunger === 'number') ? data.hunger : null;
         thirst = (typeof data.thirst === 'number') ? data.thirst : null;
@@ -378,9 +398,10 @@ window.HealthPanel = (function () {
         clearDragHighlights();
     }
 
-    function update(newFractures, newBleedings, newBlood, newHunger, newThirst) {
+    function update(newFractures, newBleedings, newBlood, newHunger, newThirst, newOrgans) {
         fractures = newFractures || {};
         bleedings = newBleedings || {};
+        organs = newOrgans || {};
         if (typeof newBlood === 'number') blood = newBlood;
         if (typeof newHunger === 'number') hunger = newHunger;
         if (typeof newThirst === 'number') thirst = newThirst;
@@ -391,12 +412,13 @@ window.HealthPanel = (function () {
     // DRAG & DROP (chiamato da drag.js)
     // ============================================
 
-    // Ritorna 'splint' | 'tourniquet' | 'bloodbag' | null per un item
+    // Ritorna 'splint' | 'tourniquet' | 'bloodbag' | 'surgery' | null per un item
     function treatmentKindFor(itemName) {
         if (!data) return null;
         if (data.splints && data.splints[itemName]) return 'splint';
         if (data.tourniquets && data.tourniquets[itemName]) return 'tourniquet';
         if (data.bloodBags && data.bloodBags[itemName]) return 'bloodbag';
+        if (data.surgeryKits && data.surgeryKits[itemName]) return 'surgery';
         return null;
     }
 
@@ -416,6 +438,9 @@ window.HealthPanel = (function () {
         if (!zoneDef) return false;
         if (kind === 'splint') {
             return !!(zoneDef.breakable && fractures[zoneKey]);
+        }
+        if (kind === 'surgery') {
+            return !!organs[zoneKey];
         }
         return !!bleedings[zoneKey]; // tourniquet
     }
@@ -511,6 +536,7 @@ window.HealthPanel = (function () {
         let cfgSource = data.splints;
         if (kind === 'tourniquet') cfgSource = data.tourniquets;
         else if (kind === 'bloodbag') cfgSource = data.bloodBags;
+        else if (kind === 'surgery') cfgSource = data.surgeryKits;
         const treatCfg = (cfgSource && cfgSource[itemName]) || {};
         const duration = treatCfg.duration || 5000;
         const zoneDef = data.zones ? data.zones[zoneKey] : null;
