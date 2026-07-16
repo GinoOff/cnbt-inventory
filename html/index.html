@@ -38,6 +38,23 @@
                         <div id="blood-bar-fill"></div>
                     </div>
                 </div>
+                <!-- Barre fame e sete (integrazione esx_status via cnbt-health) -->
+                <div id="needs-bars" class="hidden">
+                    <div class="need-bar-wrap" id="need-hunger">
+                        <div class="need-bar-header">
+                            <span class="need-title">Fame</span>
+                            <span class="need-pct" id="hunger-pct">--%</span>
+                        </div>
+                        <div class="need-track"><div class="need-fill" id="hunger-fill"></div></div>
+                    </div>
+                    <div class="need-bar-wrap" id="need-thirst">
+                        <div class="need-bar-header">
+                            <span class="need-title">Sete</span>
+                            <span class="need-pct" id="thirst-pct">--%</span>
+                        </div>
+                        <div class="need-track"><div class="need-fill" id="thirst-fill"></div></div>
+                    </div>
+                </div>
                 <div id="health-zone-list">
                     <!-- Riempito da health.js -->
                 </div>

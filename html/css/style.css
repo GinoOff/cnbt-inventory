@@ -3016,3 +3016,88 @@ body {
     border-style: solid;
     box-shadow: inset 0 0 0 1px var(--success-glow), 0 0 16px var(--success-glow);
 }
+
+/* ============================================
+   HEALTH PANEL - BARRE FAME E SETE
+   Sotto la barra del sangue (integrazione esx_status
+   via cnbt-health).
+   ============================================ */
+
+#needs-bars {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.need-bar-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px 8px 6px;
+    background: rgba(8, 11, 9, 0.55);
+}
+
+.need-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.need-title {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.need-pct {
+    font-family: 'Rajdhani', 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.need-track {
+    width: 100%;
+    height: 7px;
+    background: rgba(8, 11, 9, 0.9);
+    border: 1px solid rgba(200, 207, 168, 0.18);
+    overflow: hidden;
+}
+
+.need-fill {
+    height: 100%;
+    width: 100%;
+    transition: width 0.5s ease;
+}
+
+#need-hunger .need-fill {
+    background: linear-gradient(90deg, #8a5a16 0%, #d0883c 100%);
+}
+
+#need-thirst .need-fill {
+    background: linear-gradient(90deg, #164f8a 0%, #3c88d0 100%);
+}
+
+/* Sotto la soglia di warn (Affamato / Assetato) */
+.need-bar-wrap.nb-warn .need-pct {
+    color: var(--select-color);
+}
+.need-bar-wrap.nb-warn .need-fill {
+    animation: bbPulse 1.6s ease-in-out infinite;
+}
+
+/* Sotto la soglia critica (Denutrito / Disidratato) */
+.need-bar-wrap.nb-critical .need-pct {
+    color: var(--danger);
+    animation: bbPulse 0.8s ease-in-out infinite;
+}
+.need-bar-wrap.nb-critical .need-fill {
+    background: linear-gradient(90deg, #5a0d16 0%, #e03030 100%);
+    animation: bbPulse 0.8s ease-in-out infinite;
+}

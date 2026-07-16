@@ -21,6 +21,8 @@ window.HealthPanel = (function () {
     let fractures = {};
     let bleedings = {};
     let blood = null;       // ml correnti (null = sistema sangue non disponibile)
+    let hunger = null;      // % fame (null = esx_status non disponibile)
+    let thirst = null;      // % sete
     let busy = false;       // applicazione trattamento in corso
     let progressRaf = null;
     let progressTimeout = null;
@@ -299,10 +301,47 @@ window.HealthPanel = (function () {
         }
     }
 
+    // Barre fame e sete sotto la barra del sangue
+    function renderNeedsBars() {
+        const wrap = document.getElementById('needs-bars');
+        if (!wrap) return;
+
+        if (hunger == null && thirst == null) {
+            wrap.classList.add('hidden');
+            return;
+        }
+        wrap.classList.remove('hidden');
+
+        const th = (data && data.needsThresholds) || { warn: 50, critical: 1 };
+
+        function renderNeed(id, pct) {
+            const barWrap = document.getElementById('need-' + id);
+            const pctEl = document.getElementById(id + '-pct');
+            const fill = document.getElementById(id + '-fill');
+            if (!barWrap) return;
+
+            if (pct == null) {
+                barWrap.classList.add('hidden');
+                return;
+            }
+            barWrap.classList.remove('hidden');
+            if (pctEl) pctEl.textContent = Math.floor(pct) + '%';
+            if (fill) fill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+
+            barWrap.classList.remove('nb-warn', 'nb-critical');
+            if (pct < th.critical) barWrap.classList.add('nb-critical');
+            else if (pct < th.warn) barWrap.classList.add('nb-warn');
+        }
+
+        renderNeed('hunger', hunger);
+        renderNeed('thirst', thirst);
+    }
+
     function render() {
         renderZones();
         renderZoneList();
         renderBloodBar();
+        renderNeedsBars();
     }
 
     // ============================================
@@ -317,6 +356,8 @@ window.HealthPanel = (function () {
         fractures = data.fractures || {};
         bleedings = data.bleedings || {};
         blood = (typeof data.blood === 'number') ? data.blood : null;
+        hunger = (typeof data.hunger === 'number') ? data.hunger : null;
+        thirst = (typeof data.thirst === 'number') ? data.thirst : null;
         busy = false;
 
         buildSVG();
@@ -337,10 +378,12 @@ window.HealthPanel = (function () {
         clearDragHighlights();
     }
 
-    function update(newFractures, newBleedings, newBlood) {
+    function update(newFractures, newBleedings, newBlood, newHunger, newThirst) {
         fractures = newFractures || {};
         bleedings = newBleedings || {};
         if (typeof newBlood === 'number') blood = newBlood;
+        if (typeof newHunger === 'number') hunger = newHunger;
+        if (typeof newThirst === 'number') thirst = newThirst;
         if (isOpen) render();
     }
 
