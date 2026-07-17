@@ -2713,66 +2713,85 @@ body {
 }
 
 #health-svg-container {
-    width: 190px;
+    width: 100%;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 12%, transparent 20%),
+        rgba(3, 6, 9, 0.75);
+    border: 1px solid rgba(6, 9, 7, 0.9);
+    padding: 4px 2px;
 }
 
 .health-svg {
     width: 100%;
     height: auto;
     display: block;
+    filter: drop-shadow(0 0 8px rgba(200, 225, 255, 0.12));
 }
 
-/* Zone del corpo: neutre di default, colorate per gravita' */
-.health-zone ellipse,
-.health-zone circle,
-.health-zone rect {
-    fill: rgba(200, 207, 168, 0.05);
-    stroke: rgba(200, 207, 168, 0.22);
-    stroke-width: 1;
-    transition: fill 0.15s ease, stroke 0.15s ease;
+/* ---- Corpo a raggi X ----
+   Le zone anatomiche (ossa/organi) usano currentColor: bianche se sane,
+   gialle o rosse in base alla gravita' delle condizioni. */
+
+.health-zone {
+    color: #dce6f0; /* "bianco" raggi X */
+    transition: color 0.2s ease;
 }
 
-/* Frattura composta (media): ambra */
-.health-zone.hz-media ellipse,
-.health-zone.hz-media circle,
-.health-zone.hz-media rect {
-    fill: rgba(240, 201, 106, 0.32);
-    stroke: var(--select-color);
-    stroke-width: 1.5;
+.health-zone.hz-yellow {
+    color: var(--select-color);
 }
 
-/* Frattura scomposta (grave): rossa, pulsante */
-.health-zone.hz-grave ellipse,
-.health-zone.hz-grave circle,
-.health-zone.hz-grave rect {
-    fill: rgba(224, 96, 96, 0.38);
-    stroke: var(--danger);
-    stroke-width: 1.5;
-    animation: hzPulse 1.2s ease-in-out infinite;
+.health-zone.hz-red {
+    color: #e05555;
+    animation: hzRedPulse 1.2s ease-in-out infinite;
 }
 
-@keyframes hzPulse {
-    0%, 100% { fill-opacity: 1; }
-    50% { fill-opacity: 0.45; }
+@keyframes hzRedPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
 }
 
-/* Zona valida per il drop di una stecca durante il drag */
-.health-zone.hz-droppable ellipse,
-.health-zone.hz-droppable circle,
-.health-zone.hz-droppable rect {
-    stroke: var(--accent);
-    stroke-width: 2;
-    stroke-dasharray: 5 3;
+/* Area di drop invisibile dentro le zone */
+.health-zone .hz-hit {
+    fill: transparent;
+    stroke: none;
+}
+
+/* Zona valida per il drop durante il drag */
+.health-zone.hz-droppable {
+    filter: drop-shadow(0 0 4px var(--accent-glow)) drop-shadow(0 0 2px var(--accent));
 }
 
 /* Zona sotto il cursore durante il drag */
-.health-zone.hz-hover ellipse,
-.health-zone.hz-hover circle,
-.health-zone.hz-hover rect {
-    fill: rgba(156, 198, 119, 0.45);
-    stroke: var(--success);
-    stroke-width: 2.5;
-    stroke-dasharray: none;
+.health-zone.hz-hover {
+    color: var(--success);
+    animation: none;
+    filter: drop-shadow(0 0 8px var(--success-glow));
+}
+
+/* Decorazioni non colorabili del corpo */
+.health-svg .hb-flesh {
+    stroke: rgba(228, 240, 255, 0.08);
+    fill: none;
+}
+
+.health-svg .hb-flesh-fill {
+    fill: rgba(228, 240, 255, 0.07);
+    stroke: rgba(228, 240, 255, 0.05);
+    stroke-width: 6;
+}
+
+.health-svg .hb-decor {
+    color: #c8d6e4;
+    opacity: 0.5;
+}
+
+.health-svg .hb-grid line {
+    stroke: rgba(170, 195, 220, 0.06);
+}
+
+.health-svg .hb-ruler line {
+    stroke: rgba(190, 215, 235, 0.22);
 }
 
 /* Lista stato zone sotto lo stickman */
@@ -3103,27 +3122,10 @@ body {
 }
 
 /* ============================================
-   HEALTH PANEL - DANNI AGLI ORGANI
-   Riempimento viola per gli organi danneggiati
-   (nausea = fisso, semi-asfissia/vomito = pulsante).
+   HEALTH PANEL - DANNI AGLI ORGANI (lista)
+   Sullo stickman gli organi seguono la scala
+   bianco/giallo/rosso come le altre zone.
    ============================================ */
 
-.health-zone.hz-organ-media ellipse,
-.health-zone.hz-organ-media circle,
-.health-zone.hz-organ-media rect {
-    fill: rgba(168, 100, 220, 0.30);
-    stroke: #a864dc;
-    stroke-width: 1.5;
-}
-
-.health-zone.hz-organ-grave ellipse,
-.health-zone.hz-organ-grave circle,
-.health-zone.hz-organ-grave rect {
-    fill: rgba(190, 90, 255, 0.42);
-    stroke: #c07cf0;
-    stroke-width: 1.5;
-    animation: hzPulse 1.2s ease-in-out infinite;
-}
-
-.health-row-status.hs-organ-media { color: #a864dc; }
-.health-row-status.hs-organ-grave { color: #c07cf0; }
+.health-row-status.hs-organ-media { color: var(--select-color); }
+.health-row-status.hs-organ-grave { color: #e05555; }

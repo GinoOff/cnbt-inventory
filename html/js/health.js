@@ -2,13 +2,16 @@
  * CNBT Inventory - Health Panel (integrazione cnbt-health)
  *
  * Pannello a sinistra dello schermo, aperto insieme all'inventario.
- * Mostra uno stickman con le zone del corpo (testa, organi, braccia, gambe):
- *   - fratture: zona riempita ambra (composta) o rossa pulsante (scomposta)
- *   - sanguinamenti: goccia di sangue sulla zona (leggero/medio/pesante)
+ * Corpo in stile "raggi X" (silhouette + scheletro + organi disegnati in
+ * SVG): ogni zona e' BIANCA se sana, GIALLA o ROSSA in base alla gravita'
+ * delle condizioni attive (fratture, sanguinamenti, danni agli organi).
+ * I sanguinamenti mostrano anche una goccia di sangue accanto alla zona.
  *
- * Trattamenti trascinabili dall'inventario sulla zona dello stickman:
- *   - stecche (splint)      -> curano le fratture delle ossa
- *   - tourniquette          -> fermano i sanguinamenti
+ * Trattamenti trascinabili dall'inventario:
+ *   - stecche (splint)      -> zona fratturata
+ *   - tourniquette          -> zona che sanguina
+ *   - sacche di sangue      -> barra del sangue
+ *   - kit di chirurgia      -> organo danneggiato
  * Al drop parte una progressbar; a fine applicazione il server valida,
  * consuma un uso dell'item e cura la condizione.
  */
@@ -17,7 +20,7 @@
 
 window.HealthPanel = (function () {
     let isOpen = false;
-    let data = null;        // { fractures, bleedings, blood, zones, splints, tourniquets, bloodBags, ... }
+    let data = null;        // { fractures, bleedings, organs, blood, zones, splints, ... }
     let fractures = {};
     let bleedings = {};
     let organs = {};        // { zone: 'damaged' | 'media' | 'grave' }
@@ -34,109 +37,234 @@ window.HealthPanel = (function () {
         'left_arm', 'right_arm', 'left_leg', 'right_leg',
     ];
 
-    // Geometria delle zone sullo stickman (stesso viewBox 200x420 del
-    // pannello Utilità per coerenza visiva).
-    //   shapes = forme SVG cliccabili/colorabili
-    //   drop   = punto di ancoraggio della goccia di sanguinamento
-    const ZONE_SHAPES = {
-        head: {
-            shapes: [{ type: 'ellipse', cx: 100, cy: 48, rx: 26, ry: 30 }],
-            drop: { x: 130, y: 40 },
-        },
-        lungs: {
-            shapes: [
-                { type: 'rect', x: 72, y: 98, w: 25, h: 40, rx: 8 },
-                { type: 'rect', x: 103, y: 98, w: 25, h: 40, rx: 8 },
-            ],
-            drop: { x: 134, y: 100 },
-        },
-        heart: {
-            shapes: [{ type: 'circle', cx: 94, cy: 116, r: 9 }],
-            drop: { x: 80, y: 108 },
-        },
-        stomach: {
-            shapes: [{ type: 'rect', x: 72, y: 145, w: 56, h: 32, rx: 8 }],
-            drop: { x: 134, y: 152 },
-        },
-        intestine: {
-            shapes: [{ type: 'rect', x: 72, y: 182, w: 56, h: 38, rx: 8 }],
-            drop: { x: 134, y: 192 },
-        },
-        left_arm: {
-            shapes: [{ type: 'rect', x: 38, y: 112, w: 28, h: 180, rx: 10 }],
-            drop: { x: 32, y: 160 },
-        },
-        right_arm: {
-            shapes: [{ type: 'rect', x: 134, y: 112, w: 28, h: 180, rx: 10 }],
-            drop: { x: 168, y: 160 },
-        },
-        left_leg: {
-            shapes: [{ type: 'rect', x: 56, y: 268, w: 42, h: 142, rx: 10 }],
-            drop: { x: 48, y: 310 },
-        },
-        right_leg: {
-            shapes: [{ type: 'rect', x: 102, y: 268, w: 42, h: 142, rx: 10 }],
-            drop: { x: 152, y: 310 },
-        },
+    // Ordine di costruzione nell'SVG: prima gli organi (le costole della
+    // gabbia toracica vengono disegnate sopra, effetto raggi X), poi le
+    // zone esterne (testa e arti)
+    const ORGAN_ZONES = ['lungs', 'heart', 'stomach', 'intestine'];
+    const OUTER_ZONES = ['head', 'left_arm', 'right_arm', 'left_leg', 'right_leg'];
+
+    // Ancoraggio della goccia di sanguinamento per zona (viewBox 200x420)
+    const ZONE_DROPS = {
+        head:      { x: 132, y: 28 },
+        lungs:     { x: 140, y: 104 },
+        heart:     { x: 62, y: 112 },
+        stomach:   { x: 140, y: 172 },
+        intestine: { x: 140, y: 218 },
+        left_arm:  { x: 24, y: 170 },
+        right_arm: { x: 176, y: 170 },
+        left_leg:  { x: 58, y: 330 },
+        right_leg: { x: 142, y: 330 },
     };
 
     const svgNS = 'http://www.w3.org/2000/svg';
 
     // ============================================
-    // COSTRUZIONE SVG
+    // COSTRUZIONE SVG (corpo a raggi X)
     // ============================================
 
-    function buildBodyOutline() {
-        // Stessa silhouette del pannello Utilità (utility.js)
-        const outline = document.createElementNS(svgNS, 'path');
-        outline.setAttribute('d',
-            'M100,18 ' +
-            'C115,18 126,30 126,48 C126,66 115,78 100,78 C85,78 74,66 74,48 C74,30 85,18 100,18 Z ' +
-            'M90,78 L90,90 L110,90 L110,78 ' +
-            'M110,90 L140,100 Q155,105 155,118 L155,200 ' +
-            'L155,200 Q158,220 152,240 L145,270 Q140,285 142,295 L142,295 ' +
-            'L130,295 Q132,285 135,270 L140,245 Q145,225 142,210 ' +
-            'L142,210 L140,230 L135,260 ' +
-            'L138,300 L140,340 L142,370 Q143,385 138,395 L138,405 ' +
-            'L115,405 L115,395 L118,380 L120,340 L118,300 ' +
-            'L115,270 L100,265 L85,270 ' +
-            'L82,300 L80,340 L85,380 L85,395 L85,405 ' +
-            'L62,405 L62,395 Q57,385 58,370 L60,340 L62,300 ' +
-            'L65,260 L60,230 L58,210 ' +
-            'Q55,225 60,245 L65,270 Q68,285 70,295 ' +
-            'L58,295 Q60,285 55,270 L48,240 Q42,220 45,200 ' +
-            'L45,118 Q45,105 60,100 L90,90'
-        );
-        outline.setAttribute('fill', 'none');
-        outline.setAttribute('stroke', 'var(--accent)');
-        outline.setAttribute('stroke-width', '2');
-        outline.setAttribute('stroke-linejoin', 'round');
-        return outline;
+    function svgEl(tag, attrs, parent) {
+        const node = document.createElementNS(svgNS, tag);
+        for (const k in attrs) node.setAttribute(k, attrs[k]);
+        if (parent) parent.appendChild(node);
+        return node;
     }
 
-    function createShapeElement(shape) {
-        let el;
-        if (shape.type === 'ellipse') {
-            el = document.createElementNS(svgNS, 'ellipse');
-            el.setAttribute('cx', shape.cx);
-            el.setAttribute('cy', shape.cy);
-            el.setAttribute('rx', shape.rx);
-            el.setAttribute('ry', shape.ry);
-        } else if (shape.type === 'circle') {
-            el = document.createElementNS(svgNS, 'circle');
-            el.setAttribute('cx', shape.cx);
-            el.setAttribute('cy', shape.cy);
-            el.setAttribute('r', shape.r);
-        } else {
-            el = document.createElementNS(svgNS, 'rect');
-            el.setAttribute('x', shape.x);
-            el.setAttribute('y', shape.y);
-            el.setAttribute('width', shape.w);
-            el.setAttribute('height', shape.h);
-            el.setAttribute('rx', shape.rx || 4);
-        }
-        return el;
+    function boneLine(g, x1, y1, x2, y2, w, opacity) {
+        return svgEl('line', {
+            x1: x1, y1: y1, x2: x2, y2: y2,
+            stroke: 'currentColor', 'stroke-width': w, 'stroke-linecap': 'round',
+            opacity: opacity != null ? opacity : 0.9,
+        }, g);
     }
+
+    function joint(g, cx, cy, r) {
+        return svgEl('circle', { cx: cx, cy: cy, r: r, fill: 'currentColor', opacity: 0.95 }, g);
+    }
+
+    // Griglia di sfondo + righelli laterali (estetica scanner)
+    function buildGrid(svg) {
+        const grid = svgEl('g', { class: 'hb-grid' }, svg);
+        for (let x = 0; x <= 200; x += 20) {
+            svgEl('line', { x1: x, y1: 0, x2: x, y2: 420, 'stroke-width': 0.5 }, grid);
+        }
+        for (let y = 0; y <= 420; y += 20) {
+            svgEl('line', { x1: 0, y1: y, x2: 200, y2: y, 'stroke-width': 0.5 }, grid);
+        }
+        const ruler = svgEl('g', { class: 'hb-ruler' }, svg);
+        for (let y = 10; y < 420; y += 10) {
+            const len = (y % 50 === 0) ? 7 : 4;
+            svgEl('line', { x1: 0, y1: y, x2: len, y2: y, 'stroke-width': 1 }, ruler);
+            svgEl('line', { x1: 200 - len, y1: y, x2: 200, y2: y, 'stroke-width': 1 }, ruler);
+        }
+    }
+
+    // Silhouette del corpo (alone "carne" traslucido)
+    function buildFlesh(svg) {
+        const flesh = svgEl('g', {}, svg);
+        // testa e collo
+        svgEl('circle', { cx: 100, cy: 38, r: 23, class: 'hb-flesh-fill' }, flesh);
+        svgEl('line', { x1: 100, y1: 54, x2: 100, y2: 74, class: 'hb-flesh', 'stroke-width': 15, 'stroke-linecap': 'round' }, flesh);
+        // torso
+        svgEl('path', {
+            d: 'M83,62 L117,62 L136,86 L128,196 L124,262 L76,262 L72,196 L64,86 Z',
+            class: 'hb-flesh-fill', 'stroke-linejoin': 'round',
+        }, flesh);
+        // braccia (leggermente aperte come nella radiografia)
+        const arms = [
+            [70, 90, 48, 174, 16], [48, 174, 33, 258, 12],
+            [130, 90, 152, 174, 16], [152, 174, 167, 258, 12],
+        ];
+        for (const a of arms) {
+            svgEl('line', { x1: a[0], y1: a[1], x2: a[2], y2: a[3], class: 'hb-flesh', 'stroke-width': a[4], 'stroke-linecap': 'round' }, flesh);
+        }
+        svgEl('circle', { cx: 31, cy: 272, r: 8, class: 'hb-flesh-fill' }, flesh);
+        svgEl('circle', { cx: 169, cy: 272, r: 8, class: 'hb-flesh-fill' }, flesh);
+        // gambe
+        const legs = [
+            [86, 264, 81, 332, 18], [81, 332, 78, 400, 14], [78, 400, 64, 407, 9],
+            [114, 264, 119, 332, 18], [119, 332, 122, 400, 14], [122, 400, 136, 407, 9],
+        ];
+        for (const l of legs) {
+            svgEl('line', { x1: l[0], y1: l[1], x2: l[2], y2: l[3], class: 'hb-flesh', 'stroke-width': l[4], 'stroke-linecap': 'round' }, flesh);
+        }
+    }
+
+    // Scheletro decorativo (non colorabile): colonna, clavicole, costole,
+    // bacino. Le costole stanno SOPRA i polmoni per l'effetto raggi X.
+    function buildSkeletonDecor(svg) {
+        const decor = svgEl('g', { class: 'hb-decor' }, svg);
+        // colonna vertebrale (tratteggiata = vertebre)
+        svgEl('line', {
+            x1: 100, y1: 74, x2: 100, y2: 250,
+            stroke: 'currentColor', 'stroke-width': 6, 'stroke-dasharray': '5 3',
+        }, decor);
+        // clavicole
+        svgEl('path', {
+            d: 'M100,84 C90,80 78,84 70,90 M100,84 C110,80 122,84 130,90',
+            fill: 'none', stroke: 'currentColor', 'stroke-width': 2.5,
+        }, decor);
+        // gabbia toracica
+        for (let i = 0; i < 5; i++) {
+            const y = 100 + i * 13;
+            svgEl('path', {
+                d: 'M100,' + y + ' C88,' + (y + 1) + ' 78,' + (y + 5) + ' 76,' + (y + 10),
+                fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
+            }, decor);
+            svgEl('path', {
+                d: 'M100,' + y + ' C112,' + (y + 1) + ' 122,' + (y + 5) + ' 124,' + (y + 10),
+                fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
+            }, decor);
+        }
+        // bacino
+        svgEl('path', {
+            d: 'M84,246 C74,250 72,262 80,266 C88,270 96,264 100,256 C104,264 112,270 120,266 C128,262 126,250 116,246',
+            fill: 'none', stroke: 'currentColor', 'stroke-width': 2.5,
+        }, decor);
+    }
+
+    // Anatomia colorabile per zona (fill/stroke = currentColor del gruppo)
+    const ZONE_BUILDERS = {
+        head: function (g) {
+            // cranio
+            svgEl('circle', { cx: 100, cy: 36, r: 17, fill: 'none', stroke: 'currentColor', 'stroke-width': 2.2 }, g);
+            // mandibola
+            svgEl('path', { d: 'M88,46 Q100,60 112,46', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, g);
+            // cervello
+            svgEl('path', {
+                d: 'M87,33 C85,22 97,17 100,22 C103,17 115,22 113,33 C112,39 104,42 100,40 C96,42 88,39 87,33 Z',
+                fill: 'currentColor', opacity: 0.75,
+            }, g);
+            svgEl('line', { x1: 100, y1: 22, x2: 100, y2: 40, stroke: 'currentColor', 'stroke-width': 1, opacity: 0.5 }, g);
+            svgEl('circle', { cx: 100, cy: 38, r: 24, fill: 'transparent', class: 'hz-hit' }, g);
+        },
+        lungs: function (g) {
+            // trachea
+            svgEl('path', {
+                d: 'M100,78 V93 M100,93 L94,100 M100,93 L106,100',
+                fill: 'none', stroke: 'currentColor', 'stroke-width': 2.2, opacity: 0.8,
+            }, g);
+            // lobo sinistro
+            svgEl('path', {
+                d: 'M96,96 C96,91 89,91 84,96 C76,104 73,122 75,142 C76,153 82,158 89,155 C94,152 96,144 96,130 Z',
+                fill: 'currentColor', opacity: 0.7,
+            }, g);
+            // lobo destro
+            svgEl('path', {
+                d: 'M104,96 C104,91 111,91 116,96 C124,104 127,122 125,142 C124,153 118,158 111,155 C106,152 104,144 104,130 Z',
+                fill: 'currentColor', opacity: 0.7,
+            }, g);
+        },
+        heart: function (g) {
+            svgEl('path', {
+                d: 'M93,107 C87,101 77,105 77,114 C77,124 86,132 93,138 C99,133 107,126 107,116 C107,106 98,102 93,107 Z',
+                fill: 'currentColor', opacity: 0.92,
+            }, g);
+        },
+        stomach: function (g) {
+            svgEl('path', {
+                d: 'M90,160 C88,154 96,152 100,156 C104,160 114,162 117,170 C120,180 112,188 101,187 C88,186 83,172 90,160 Z',
+                fill: 'currentColor', opacity: 0.8,
+            }, g);
+        },
+        intestine: function (g) {
+            // colon (cornice)
+            svgEl('path', { d: 'M77,196 C73,212 73,230 78,246', fill: 'none', stroke: 'currentColor', 'stroke-width': 7, 'stroke-linecap': 'round', opacity: 0.5 }, g);
+            svgEl('path', { d: 'M123,196 C127,212 127,230 122,246', fill: 'none', stroke: 'currentColor', 'stroke-width': 7, 'stroke-linecap': 'round', opacity: 0.5 }, g);
+            // anse intestinali
+            const coils = [
+                'M82,200 C92,196 108,204 118,200',
+                'M82,213 C92,209 108,217 118,213',
+                'M82,226 C92,222 108,230 118,226',
+                'M84,239 C94,235 106,243 114,239',
+            ];
+            for (const d of coils) {
+                svgEl('path', { d: d, fill: 'none', stroke: 'currentColor', 'stroke-width': 8, 'stroke-linecap': 'round', opacity: 0.65 }, g);
+            }
+        },
+        left_arm: function (g) {
+            boneLine(g, 71, 90, 49, 172, 4.5);  // omero
+            boneLine(g, 49, 172, 34, 254, 3);   // radio
+            boneLine(g, 53, 175, 39, 256, 2);   // ulna
+            joint(g, 71, 90, 4.5);
+            joint(g, 49, 172, 4);
+            joint(g, 36, 256, 3.5);
+            // mano
+            boneLine(g, 35, 259, 29, 276, 2);
+            boneLine(g, 35, 259, 33, 278, 2);
+            boneLine(g, 35, 259, 37, 277, 2);
+            svgEl('polygon', { points: '58,82 84,94 48,282 16,272', fill: 'transparent', class: 'hz-hit' }, g);
+        },
+        right_arm: function (g) {
+            boneLine(g, 129, 90, 151, 172, 4.5);
+            boneLine(g, 151, 172, 166, 254, 3);
+            boneLine(g, 147, 175, 161, 256, 2);
+            joint(g, 129, 90, 4.5);
+            joint(g, 151, 172, 4);
+            joint(g, 164, 256, 3.5);
+            boneLine(g, 165, 259, 171, 276, 2);
+            boneLine(g, 165, 259, 167, 278, 2);
+            boneLine(g, 165, 259, 163, 277, 2);
+            svgEl('polygon', { points: '142,82 116,94 152,282 184,272', fill: 'transparent', class: 'hz-hit' }, g);
+        },
+        left_leg: function (g) {
+            boneLine(g, 86, 265, 81, 330, 5);   // femore
+            joint(g, 81, 332, 4.5);             // ginocchio
+            boneLine(g, 81, 336, 78, 398, 3.5); // tibia
+            boneLine(g, 86, 338, 83, 396, 2);   // perone
+            joint(g, 79, 400, 3);
+            boneLine(g, 78, 402, 64, 407, 2.5); // piede
+            svgEl('polygon', { points: '70,258 98,258 92,414 56,414', fill: 'transparent', class: 'hz-hit' }, g);
+        },
+        right_leg: function (g) {
+            boneLine(g, 114, 265, 119, 330, 5);
+            joint(g, 119, 332, 4.5);
+            boneLine(g, 119, 336, 122, 398, 3.5);
+            boneLine(g, 114, 338, 117, 396, 2);
+            joint(g, 121, 400, 3);
+            boneLine(g, 122, 402, 136, 407, 2.5);
+            svgEl('polygon', { points: '102,258 130,258 144,414 108,414', fill: 'transparent', class: 'hz-hit' }, g);
+        },
+    };
 
     // Goccia di sangue posizionata sull'ancoraggio della zona
     function createDropletElement(anchor) {
@@ -150,6 +278,19 @@ window.HealthPanel = (function () {
         return drop;
     }
 
+    function buildZone(svg, zoneKey) {
+        const g = svgEl('g', { class: 'health-zone', 'data-hzone': zoneKey }, svg);
+
+        const zoneDef = data && data.zones ? data.zones[zoneKey] : null;
+        const title = document.createElementNS(svgNS, 'title');
+        title.textContent = zoneDef ? zoneDef.label : zoneKey;
+        g.appendChild(title);
+
+        if (ZONE_BUILDERS[zoneKey]) ZONE_BUILDERS[zoneKey](g);
+        if (ZONE_DROPS[zoneKey]) g.appendChild(createDropletElement(ZONE_DROPS[zoneKey]));
+        return g;
+    }
+
     function buildSVG() {
         const container = document.getElementById('health-svg-container');
         if (!container) return;
@@ -159,30 +300,17 @@ window.HealthPanel = (function () {
         svg.setAttribute('class', 'health-svg');
         svg.id = 'health-svg';
 
-        svg.appendChild(buildBodyOutline());
+        buildGrid(svg);
+        buildFlesh(svg);
 
-        // Gruppi zona: ogni zona ha data-hzone e riceve classi di stato
-        for (const zoneKey of ZONE_ORDER) {
-            const zoneGeom = ZONE_SHAPES[zoneKey];
-            if (!zoneGeom) continue;
+        // Organi interni (sotto la gabbia toracica)
+        for (const zoneKey of ORGAN_ZONES) buildZone(svg, zoneKey);
 
-            const g = document.createElementNS(svgNS, 'g');
-            g.setAttribute('class', 'health-zone');
-            g.setAttribute('data-hzone', zoneKey);
+        // Scheletro decorativo (costole sopra i polmoni = effetto raggi X)
+        buildSkeletonDecor(svg);
 
-            const zoneDef = data && data.zones ? data.zones[zoneKey] : null;
-            const title = document.createElementNS(svgNS, 'title');
-            title.textContent = zoneDef ? zoneDef.label : zoneKey;
-            g.appendChild(title);
-
-            for (const shape of zoneGeom.shapes) {
-                g.appendChild(createShapeElement(shape));
-            }
-            if (zoneGeom.drop) {
-                g.appendChild(createDropletElement(zoneGeom.drop));
-            }
-            svg.appendChild(g);
-        }
+        // Testa e arti (ossa colorabili)
+        for (const zoneKey of OUTER_ZONES) buildZone(svg, zoneKey);
 
         container.innerHTML = '';
         container.appendChild(svg);
@@ -192,23 +320,29 @@ window.HealthPanel = (function () {
     // RENDER STATO
     // ============================================
 
+    // Livello complessivo della zona: 0 = sana (bianca), 1 = gialla, 2 = rossa
+    function zoneLevel(zoneKey) {
+        let level = 0;
+        const fr = fractures[zoneKey];
+        if (fr) level = Math.max(level, fr === 'grave' ? 2 : 1);
+        const bl = bleedings[zoneKey];
+        if (bl) level = Math.max(level, bl === 'heavy' ? 2 : 1);
+        const org = organs[zoneKey];
+        if (org) level = Math.max(level, org === 'media' ? 1 : 2);
+        return level;
+    }
+
     function renderZones() {
         document.querySelectorAll('.health-zone').forEach(function (g) {
             const zoneKey = g.dataset.hzone;
 
-            // Frattura: riempimento della zona (ambra/rosso)
-            g.classList.remove('hz-media', 'hz-grave', 'hz-organ-media', 'hz-organ-grave');
-            const frSev = fractures[zoneKey];
-            if (frSev === 'media') g.classList.add('hz-media');
-            else if (frSev === 'grave') g.classList.add('hz-grave');
+            // Colore zona: bianca sana, gialla o rossa per gravita'
+            g.classList.remove('hz-yellow', 'hz-red');
+            const level = zoneLevel(zoneKey);
+            if (level === 1) g.classList.add('hz-yellow');
+            else if (level === 2) g.classList.add('hz-red');
 
-            // Danno organo: riempimento viola (media = nausea, il resto pulsa)
-            const orgSev = organs[zoneKey];
-            if (orgSev) {
-                g.classList.add(orgSev === 'media' ? 'hz-organ-media' : 'hz-organ-grave');
-            }
-
-            // Sanguinamento: goccia colorata
+            // Sanguinamento: goccia colorata accanto alla zona
             const drop = g.querySelector('.health-drop');
             if (drop) {
                 drop.classList.remove('hd-light', 'hd-medium', 'hd-heavy');
