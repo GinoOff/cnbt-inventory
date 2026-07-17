@@ -132,6 +132,19 @@ Config.ItemEffects = {
     ['bandage'] = {
         event = { client = 'cnbt-inventory:client:useBandage' },
     },
+    -- Stimolanti cnbt-health (buff + effetti collaterali in Config.Stims)
+    ['stim_epo'] = {
+        event = { server = 'cnbt-health:server:useStim' },
+    },
+    ['stim_strychnine'] = {
+        event = { server = 'cnbt-health:server:useStim' },
+    },
+    ['stim_ori12'] = {
+        event = { server = 'cnbt-health:server:useStim' },
+    },
+    ['stim_hpr3s'] = {
+        event = { server = 'cnbt-health:server:useStim' },
+    },
     -- Example custom export:
     -- ['phone'] = {
     --     export = { resource = 'gcphone', export = 'togglePhone' },

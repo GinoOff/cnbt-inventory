@@ -238,6 +238,61 @@ Items['ibalin'] = {
     category    = 'medical',
 }
 
+-- Stimolanti (cnbt-health): iniettori monouso, si usano col tasto destro.
+-- Buff ed effetti collaterali sono definiti in Config.Stims di
+-- cnbt-health/config.lua.
+Items['stim_epo'] = {
+    label       = 'EPO',
+    description = 'Aumenta la rigenerazione del sangue per 180s. Effetti collaterali: intossicazione, disidratazione, danni interni.',
+    weight      = 100,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'stim_epo.png',
+    category    = 'medical',
+}
+
+Items['stim_strychnine'] = {
+    label       = 'Stricnina',
+    description = 'Blocca il consumo di stamina per 60s. Effetti collaterali: intossicazione, fame, crollo finale e danni al cuore.',
+    weight      = 100,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'stim_strychnine.png',
+    category    = 'medical',
+}
+
+Items['stim_ori12'] = {
+    label       = 'ORI-12',
+    description = 'Rigenera parzialmente le ossa in 240s. Effetti collaterali: intossicazione e dolore.',
+    weight      = 100,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'stim_ori12.png',
+    category    = 'medical',
+}
+
+Items['stim_hpr3s'] = {
+    label       = 'HpR 3-S',
+    description = 'Rigenera parzialmente gli organi in 240s. Effetti collaterali: intossicazione e dolore.',
+    weight      = 100,
+    sizeX       = 1,
+    sizeY       = 1,
+    stackable   = true,
+    maxStack    = 1,
+    usable      = true,
+    image       = 'stim_hpr3s.png',
+    category    = 'medical',
+}
+
 -- ============================================
 -- FOOD & DRINK
 -- ============================================
