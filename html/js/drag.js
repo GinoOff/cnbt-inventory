@@ -88,6 +88,19 @@ const DragSystem = (function () {
             }
         }
 
+        // Highlight the matching stickman zone when dragging helmet/vest
+        // (clothing tab) and the valid medical targets (health tab)
+        if (window.UtilityPanel && window.UtilityPanel.isOpen()) {
+            const gDef = window.CNBT.itemDefs[item.name];
+            if (gDef && (gDef.category === 'helmet' || gDef.category === 'vest')) {
+                window.UtilityPanel.highlightGearZone(gDef.category, true);
+            }
+        }
+        if (window.HealthPanel && window.HealthPanel.isPanelActive()
+            && (gridId === 'player' || gridId === 'backpack')) {
+            window.HealthPanel.highlightTargets(item.name);
+        }
+
         // Start render loop
         if (!rafId) {
             rafId = requestAnimationFrame(renderLoop);
@@ -119,6 +132,10 @@ const DragSystem = (function () {
             window.Gunsmith.clearSlotHighlights();
         }
 
+        // Clear stickman / health target highlights
+        if (window.UtilityPanel) window.UtilityPanel.clearGearZoneHighlights();
+        if (window.HealthPanel) window.HealthPanel.clearTargetHighlights();
+
         // Check if dropped on a gunsmith attachment slot
         if (window.Gunsmith && window.Gunsmith.isOpen()) {
             const def = window.CNBT.itemDefs[dragItem.item.name];
@@ -144,6 +161,17 @@ const DragSystem = (function () {
         if (dropResult) {
             handleDrop(dropResult);
         } else {
+            // Check if dropped on a medical target (health tab stickman /
+            // blood bar) with a treatment item
+            if (window.HealthPanel && (dragItem.gridId === 'player' || dragItem.gridId === 'backpack')) {
+                const hTarget = window.HealthPanel.getDropTargetAt(e.clientX, e.clientY, dragItem.item.name);
+                if (hTarget) {
+                    handleHealthDrop(hTarget.zone);
+                    finishDrag();
+                    return;
+                }
+            }
+
             // Check if dropped on backpack equipment slot (utility panel)
             const bpSlot = document.getElementById('equip-backpack');
             if (bpSlot && !bpSlot.closest('.hidden')) {
@@ -156,16 +184,13 @@ const DragSystem = (function () {
                 }
             }
 
-            // Check if dropped on armor equipment slot (utility panel)
-            const armorSlot = document.getElementById('equip-armor');
-            if (armorSlot && !armorSlot.closest('.hidden')) {
-                const armorRect = armorSlot.getBoundingClientRect();
-                if (e.clientX >= armorRect.left && e.clientX <= armorRect.right &&
-                    e.clientY >= armorRect.top && e.clientY <= armorRect.bottom) {
-                    handleEquipSlot('armor');
-                    finishDrag();
-                    return;
-                }
+            // Check if dropped on helmet/vest gear slot or on the matching
+            // stickman zone (clothing tab)
+            const gearSlot = getGearDropSlot(e.clientX, e.clientY);
+            if (gearSlot) {
+                handleGearEquip(gearSlot);
+                finishDrag();
+                return;
             }
 
             // Check if dropped on parachute equipment slot (utility panel)
@@ -332,6 +357,11 @@ const DragSystem = (function () {
 
         // Equipment slot drag-over highlights
         highlightEquipSlots();
+
+        // Medical target hover highlight (health tab)
+        if (window.HealthPanel && (dragItem.gridId === 'player' || dragItem.gridId === 'backpack')) {
+            window.HealthPanel.hoverTargetAt(mouseX, mouseY, dragItem.item.name);
+        }
     }
 
     function highlightEquipSlots() {
@@ -341,7 +371,8 @@ const DragSystem = (function () {
         // Map categories to slot IDs
         const slotMap = {
             backpack:  'equip-backpack',
-            armor:     'equip-armor',
+            helmet:    'equip-helmet',
+            vest:      'equip-vest',
             parachute: 'equip-parachute',
         };
 
@@ -541,7 +572,6 @@ const DragSystem = (function () {
         if (!def) return;
 
         // Validate item matches slot type
-        if (slotType === 'armor' && def.category !== 'armor') return;
         if (slotType === 'parachute' && def.category !== 'parachute') return;
 
         window.CNBT.nuiCallback('equipSlot', {
@@ -549,6 +579,55 @@ const DragSystem = (function () {
             itemIndex: dragItem.index + 1,
             grid: dragItem.gridId,
         });
+    }
+
+    /**
+     * Slot gear ('helmet'|'vest') su cui e' avvenuto il drop, oppure null.
+     * Accetta sia il drop sullo slot dedicato che sulla zona corrispondente
+     * dello stickman della scheda Vestiario (testa / torso).
+     */
+    function getGearDropSlot(x, y) {
+        const def = window.CNBT.itemDefs[dragItem.item.name];
+        if (!def || (def.category !== 'helmet' && def.category !== 'vest')) return null;
+        // Il gear si puo' indossare solo dall'inventario del player / zaino
+        if (dragItem.gridId !== 'player' && dragItem.gridId !== 'backpack') return null;
+
+        const slotEl = document.getElementById(def.category === 'helmet' ? 'equip-helmet' : 'equip-vest');
+        if (slotEl && !slotEl.closest('.hidden')) {
+            const rect = slotEl.getBoundingClientRect();
+            if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                return def.category;
+            }
+        }
+
+        // Drop direttamente sulla testa/torso dello stickman
+        if (window.UtilityPanel && window.UtilityPanel.isPointOnGearZone(def.category, x, y)) {
+            return def.category;
+        }
+        return null;
+    }
+
+    function handleGearEquip(slot) {
+        window.CNBT.nuiCallback('equipGear', {
+            slot: slot,
+            itemIndex: dragItem.index + 1, // Lua 1-indexed
+            grid: dragItem.gridId,
+        });
+    }
+
+    // Trattamento medico rilasciato su una zona dello stickman salute
+    // (o 'blood' per la barra del sangue). La validazione e il consumo
+    // sono lato server; qui parte solo la progressbar.
+    function handleHealthDrop(zone) {
+        window.CNBT.nuiCallback('applyHealthTreatment', {
+            zone: zone,
+            itemName: dragItem.item.name,
+            grid: dragItem.gridId,
+            itemIndex: dragItem.index + 1, // Lua 1-indexed
+        });
+        if (window.HealthPanel) {
+            window.HealthPanel.startProgress(dragItem.item.name, zone);
+        }
     }
 
     function revertDrag() {

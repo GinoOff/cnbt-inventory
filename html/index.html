@@ -17,59 +17,121 @@
         </div>
 
         <div id="inventory-panels">
-            <!-- Utility panel (left side, toggled by Utilità button) -->
+            <!-- Utility panel (left side, toggled by Utilità button).
+                 Chrome-style tabs: VESTIARIO (equip + clothing) | SALUTE (health) -->
             <div id="utility-panel" class="inv-panel hidden">
-                <div class="panel-header">
-                    <div class="panel-title-group">
-                        <span class="panel-title">Utilit&agrave;</span>
-                        <span class="panel-title-chevron">&#9662;</span>
+                <div id="utility-tabs">
+                    <button id="tab-btn-clothing" class="utility-tab active" data-tab="clothing">
+                        <span class="utility-tab-label">Vestiario</span>
+                    </button>
+                    <button id="tab-btn-health" class="utility-tab" data-tab="health">
+                        <span class="utility-tab-label">Salute</span>
+                    </button>
+                </div>
+
+                <!-- ======== TAB VESTIARIO ======== -->
+                <div id="utility-tab-clothing" class="utility-tab-content">
+                    <div id="utility-body">
+                        <!-- Left column: equipment slots -->
+                        <div id="utility-left-slots">
+                            <div class="equip-slot-wrap">
+                                <span class="equip-slot-label">CASCO</span>
+                                <div id="equip-helmet" class="equip-slot" data-slot="helmet">
+                                    <span class="equip-slot-placeholder"></span>
+                                </div>
+                            </div>
+                            <div class="equip-slot-wrap">
+                                <span class="equip-slot-label">ZAINO</span>
+                                <div id="equip-backpack" class="equip-slot" data-slot="backpack">
+                                    <span class="equip-slot-placeholder"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Center: interactive SVG body -->
+                        <div id="utility-body-figure">
+                            <div id="body-svg-container">
+                                <!-- Filled by utility.js -->
+                            </div>
+                        </div>
+
+                        <!-- Right column: equipment slots -->
+                        <div id="utility-right-slots">
+                            <div class="equip-slot-wrap">
+                                <span class="equip-slot-label">GIUBBOTTO</span>
+                                <div id="equip-vest" class="equip-slot" data-slot="vest">
+                                    <span class="equip-slot-placeholder"></span>
+                                </div>
+                            </div>
+                            <div class="equip-slot-wrap">
+                                <span class="equip-slot-label">PARACADUTE</span>
+                                <div id="equip-parachute" class="equip-slot" data-slot="parachute">
+                                    <span class="equip-slot-placeholder"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom: backpack grid (moved from player panel) -->
+                    <div id="utility-backpack-grid" class="hidden">
+                        <div class="panel-header">
+                            <div class="panel-title-group">
+                                <span class="panel-title" id="backpack-label">Backpack</span>
+                            </div>
+                            <span id="backpack-weight" class="weight-info">0 / 0 g</span>
+                        </div>
+                        <div id="backpack-grid" class="grid-container"></div>
                     </div>
                 </div>
 
-                <div id="utility-body">
-                    <!-- Left column: equipment slots -->
-                    <div id="utility-left-slots">
-                        <div class="equip-slot-wrap">
-                            <span class="equip-slot-label">ZAINO</span>
-                            <div id="equip-backpack" class="equip-slot" data-slot="backpack">
-                                <span class="equip-slot-placeholder"></span>
+                <!-- ======== TAB SALUTE ======== -->
+                <div id="utility-tab-health" class="utility-tab-content hidden">
+                    <div id="health-body">
+                        <!-- Center: interactive medical stickman -->
+                        <div id="health-figure">
+                            <div id="health-svg-container">
+                                <!-- Filled by health.js -->
                             </div>
                         </div>
-                        <div class="equip-slot-wrap">
-                            <span class="equip-slot-label">ARMATURA</span>
-                            <div id="equip-armor" class="equip-slot" data-slot="armor">
-                                <span class="equip-slot-placeholder"></span>
+
+                        <!-- Right: active conditions list -->
+                        <div id="health-conditions">
+                            <!-- Filled by health.js -->
+                        </div>
+                    </div>
+
+                    <!-- Bars: blood (drop target for blood bags), hunger, thirst -->
+                    <div id="health-bars">
+                        <div class="hbar-wrap" id="blood-bar-wrap">
+                            <div class="hbar-head">
+                                <span class="hbar-label">Sangue</span>
+                                <span class="hbar-value" id="blood-value">--</span>
+                            </div>
+                            <div class="hbar hbar-blood"><div class="hbar-fill" id="blood-fill"></div></div>
+                        </div>
+                        <div class="hbar-row">
+                            <div class="hbar-wrap hbar-small" id="hunger-bar-wrap">
+                                <div class="hbar-head">
+                                    <span class="hbar-label">Fame</span>
+                                    <span class="hbar-value" id="hunger-value">--</span>
+                                </div>
+                                <div class="hbar hbar-hunger"><div class="hbar-fill" id="hunger-fill"></div></div>
+                            </div>
+                            <div class="hbar-wrap hbar-small" id="thirst-bar-wrap">
+                                <div class="hbar-head">
+                                    <span class="hbar-label">Sete</span>
+                                    <span class="hbar-value" id="thirst-value">--</span>
+                                </div>
+                                <div class="hbar hbar-thirst"><div class="hbar-fill" id="thirst-fill"></div></div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Center: interactive SVG body -->
-                    <div id="utility-body-figure">
-                        <div id="body-svg-container">
-                            <!-- Filled by utility.js -->
-                        </div>
+                    <!-- Treatment in progress -->
+                    <div id="health-progress" class="hidden">
+                        <span id="health-progress-label">Applicazione...</span>
+                        <div class="hbar"><div class="hbar-fill" id="health-progress-fill"></div></div>
                     </div>
-
-                    <!-- Right column: equipment slots -->
-                    <div id="utility-right-slots">
-                        <div class="equip-slot-wrap">
-                            <span class="equip-slot-label">PARACADUTE</span>
-                            <div id="equip-parachute" class="equip-slot" data-slot="parachute">
-                                <span class="equip-slot-placeholder"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bottom: backpack grid (moved from player panel) -->
-                <div id="utility-backpack-grid" class="hidden">
-                    <div class="panel-header">
-                        <div class="panel-title-group">
-                            <span class="panel-title" id="backpack-label">Backpack</span>
-                        </div>
-                        <span id="backpack-weight" class="weight-info">0 / 0 g</span>
-                    </div>
-                    <div id="backpack-grid" class="grid-container"></div>
                 </div>
             </div>
 
@@ -298,6 +360,7 @@
     <script src="js/stashes.js"></script>
     <script src="js/inventories.js"></script>
     <script src="js/utility.js"></script>
+    <script src="js/health.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

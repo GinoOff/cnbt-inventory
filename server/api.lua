@@ -274,8 +274,70 @@ local function AddItemToStash(stashId, itemName, count, metadata)
     return true
 end
 
+-- ============================================
+-- ITEM AT / CONSUME USE (usati da cnbt-health)
+-- ============================================
+
+-- Ritorna l'item a un indice preciso di una griglia ('player' | 'backpack')
+local function GetItemAt(identifier, grid, itemIndex)
+    local inv = loadInventory(identifier, 'player')
+    local gridItems
+    if grid == 'backpack' and inv.backpack then
+        gridItems = inv.backpack.items
+    else
+        gridItems = inv.items
+    end
+
+    local item = gridItems[tonumber(itemIndex) or -1]
+    if not item then return nil end
+    return {
+        name = item.name,
+        count = item.count or 1,
+        metadata = item.metadata or {},
+    }
+end
+
+-- Consuma un utilizzo di un item multi-uso (stecche, tourniquette, sacche
+-- di sangue, kit chirurgici). Gli usi residui vivono in metadata.uses
+-- (inizializzati a maxUses al primo consumo); a 0 l'item viene rimosso.
+-- Ritorna: consumed (bool), removed (bool), usesLeft (number)
+local function ConsumeItemUse(identifier, grid, itemIndex, itemName, maxUses)
+    local inv = loadInventory(identifier, 'player')
+    local gridItems
+    if grid == 'backpack' and inv.backpack then
+        gridItems = inv.backpack.items
+    else
+        gridItems = inv.items
+    end
+
+    itemIndex = tonumber(itemIndex)
+    local item = itemIndex and gridItems[itemIndex] or nil
+    -- Rivalida: l'item deve essere ancora li' e con lo stesso nome
+    if not item or item.name ~= itemName then
+        return false, false, 0
+    end
+
+    item.metadata = item.metadata or {}
+    local usesLeft = tonumber(item.metadata.uses) or (tonumber(maxUses) or 1)
+    usesLeft = usesLeft - 1
+
+    local removed = false
+    if usesLeft <= 0 then
+        table.remove(gridItems, itemIndex)
+        removed = true
+        usesLeft = 0
+    else
+        item.metadata.uses = usesLeft
+    end
+
+    markDirty(identifier, 'player')
+    return true, removed, usesLeft
+end
+
 -- Register exports
 exports('AddItem', AddItem)
+exports('GetItemAt', GetItemAt)
+exports('ConsumeItemUse', ConsumeItemUse)
 exports('RemoveItem', RemoveItem)
 exports('GetItemCount', GetItemCount)
 exports('HasItem', HasItem)

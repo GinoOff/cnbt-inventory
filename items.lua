@@ -700,19 +700,6 @@ Items['case_cooler'] = {
 -- EQUIPMENT (utility panel)
 -- ============================================
 
-Items['armor'] = {
-    label       = 'Giubbotto Antiproiettile',
-    description = 'Armatura protettiva che assorbe i danni',
-    weight      = 3500,
-    sizeX       = 2,
-    sizeY       = 2,
-    stackable   = false,
-    maxStack    = 1,
-    usable      = false,
-    image       = 'armor.png',
-    category    = 'armor',
-}
-
 Items['parachute'] = {
     label       = 'Paracadute',
     description = 'Paracadute d\'emergenza',
@@ -724,4 +711,116 @@ Items['parachute'] = {
     usable      = false,
     image       = 'parachute.png',
     category    = 'parachute',
+}
+
+-- ============================================
+-- CASCHI (scheda Vestiario - protezione gestita da cnbt-clothes)
+-- ============================================
+
+Items['helmet_ww2'] = {
+    label       = 'Elmetto M1 (WW2)',
+    description = 'Elmetto in acciaio d\'epoca. Ferma le pistole, poco altro.',
+    weight      = 1200,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'helmet_ww2.png',
+    category    = 'helmet',
+}
+
+Items['helmet_riot'] = {
+    label       = 'Casco PASGT',
+    description = 'Casco in kevlar da ordine pubblico. Protezione media.',
+    weight      = 1400,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'helmet_riot.png',
+    category    = 'helmet',
+}
+
+Items['helmet_combat'] = {
+    label       = 'Casco Balistico Moderno',
+    description = 'Casco balistico FAST. Tanka anche i fucili d\'assalto.',
+    weight      = 1600,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'helmet_combat.png',
+    category    = 'helmet',
+}
+
+Items['helmet_heavy'] = {
+    label       = 'Casco Balistico Pesante',
+    description = 'Casco pesante con visiera. Il meglio sul mercato.',
+    weight      = 2400,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'helmet_heavy.png',
+    category    = 'helmet',
+}
+
+-- ============================================
+-- GIUBBOTTI ANTIPROIETTILE (scheda Vestiario - cnbt-clothes)
+-- ============================================
+
+Items['vest_light'] = {
+    label       = 'Giubbotto Leggero',
+    description = 'Giubbotto da pattuglia. Ferma solo le pistole.',
+    weight      = 2500,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'vest_light.png',
+    category    = 'vest',
+}
+
+Items['vest_standard'] = {
+    label       = 'Giubbotto Antiproiettile',
+    description = 'Kevlar standard. Ferma pistole, SMG e pallettoni.',
+    weight      = 3500,
+    sizeX       = 2,
+    sizeY       = 2,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'vest_standard.png',
+    category    = 'vest',
+}
+
+Items['vest_tactical'] = {
+    label       = 'Giubbotto Tattico a Piastre',
+    description = 'Piastre balistiche. Ferma anche i fucili d\'assalto.',
+    weight      = 5500,
+    sizeX       = 2,
+    sizeY       = 3,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'vest_tactical.png',
+    category    = 'vest',
+}
+
+Items['vest_military'] = {
+    label       = 'Giubbotto Militare Pesante',
+    description = 'Protezione militare completa. Ferma anche i fucili di precisione.',
+    weight      = 8000,
+    sizeX       = 2,
+    sizeY       = 3,
+    stackable   = false,
+    maxStack    = 1,
+    usable      = false,
+    image       = 'vest_military.png',
+    category    = 'vest',
 }

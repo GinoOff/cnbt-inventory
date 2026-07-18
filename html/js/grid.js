@@ -190,6 +190,15 @@ class InventoryGrid {
             el.appendChild(count);
         }
 
+        // Remaining uses badge (multi-use medical items: splints,
+        // tourniquets, blood bags, surgery kits)
+        if (item.metadata && item.metadata.uses != null) {
+            const uses = document.createElement('span');
+            uses.className = 'item-uses';
+            uses.textContent = item.metadata.uses;
+            el.appendChild(uses);
+        }
+
         // Rotation indicator
         if (item.rotated) {
             const rot = document.createElement('span');

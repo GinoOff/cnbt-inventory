@@ -134,6 +134,15 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
         }
     end
 
+    -- Dati del pannello salute (scheda Salute) da cnbt-health, se avviato
+    local healthData = nil
+    if GetResourceState('cnbt-health') == 'started' then
+        local ok, data = pcall(function()
+            return exports['cnbt-health']:GetHealthPanelData()
+        end)
+        if ok then healthData = data end
+    end
+
     SetNuiFocus(true, true)
     SetNuiFocusKeepInput(true) -- allow player to move while inventory is open
     SendNUIMessage({
@@ -145,6 +154,7 @@ AddEventHandler('cnbt-inventory:client:openInventory', function(playerData, exte
         caseConfigs = caseConfigs,
         hotbarSlots = Config.HotbarSlots,
         colors = Config.Colors,
+        healthData = healthData,
     })
 end)
 
@@ -344,9 +354,27 @@ RegisterNUICallback('toggleClothing', function(data, cb)
     cb('ok')
 end)
 
--- Equipment slot (armor / parachute) from utility panel
+-- Equipment slot (parachute) from utility panel
 RegisterNUICallback('equipSlot', function(data, cb)
     TriggerServerEvent('cnbt-inventory:server:equipSlot', data)
+    cb('ok')
+end)
+
+-- Gear (casco / giubbotto) dalla scheda Vestiario
+RegisterNUICallback('equipGear', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:equipGear', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('unequipGear', function(data, cb)
+    TriggerServerEvent('cnbt-inventory:server:unequipGear', data)
+    cb('ok')
+end)
+
+-- Trattamento medico trascinato sullo stickman della scheda Salute:
+-- inoltrato a cnbt-health che valida e consuma lato server
+RegisterNUICallback('applyHealthTreatment', function(data, cb)
+    TriggerEvent('cnbt-health:applyTreatmentRequest', data)
     cb('ok')
 end)
 
@@ -385,13 +413,8 @@ AddEventHandler('cnbt-inventory:client:stackSuccess', function(data)
     SendNUIMessage({ type = 'stackSuccess', data = data })
 end)
 
--- Armor/parachute equip from utility panel
-RegisterNetEvent('cnbt-inventory:client:applyArmor')
-AddEventHandler('cnbt-inventory:client:applyArmor', function(item)
-    local ped = PlayerPedId()
-    SetPedArmour(ped, 100)
-end)
-
+-- Parachute equip from utility panel (caschi/giubbotti passano da
+-- cnbt-clothes tramite gli eventi gear qui sotto)
 RegisterNetEvent('cnbt-inventory:client:applyParachute')
 AddEventHandler('cnbt-inventory:client:applyParachute', function(item)
     local ped = PlayerPedId()
@@ -401,6 +424,34 @@ end)
 RegisterNetEvent('cnbt-inventory:client:equipSlotSuccess')
 AddEventHandler('cnbt-inventory:client:equipSlotSuccess', function(data)
     SendNUIMessage({ type = 'equipSlotSuccess', data = data })
+end)
+
+-- Gear (casco / giubbotto) equipaggiato o rimosso
+RegisterNetEvent('cnbt-inventory:client:gearEquipped')
+AddEventHandler('cnbt-inventory:client:gearEquipped', function(data)
+    SendNUIMessage({ type = 'gearEquipped', data = data })
+end)
+
+RegisterNetEvent('cnbt-inventory:client:gearUnequipped')
+AddEventHandler('cnbt-inventory:client:gearUnequipped', function(data)
+    SendNUIMessage({ type = 'gearUnequipped', data = data })
+end)
+
+-- ============================================
+-- INTEGRAZIONE CNBT-HEALTH (scheda Salute)
+-- ============================================
+
+-- Stato salute cambiato (evento locale emesso dal client di cnbt-health):
+-- la NUI aggiorna lo stickman e le barre in tempo reale
+AddEventHandler('cnbt-health:stateChanged', function(state)
+    if not isOpen then return end
+    SendNUIMessage({ type = 'healthUpdate', state = state })
+end)
+
+-- Esito di un trattamento applicato dallo stickman (progressbar finita):
+-- la NUI aggiorna il badge usi dell'item o lo rimuove
+AddEventHandler('cnbt-health:treatmentResult', function(result)
+    SendNUIMessage({ type = 'treatmentResult', result = result })
 end)
 
 RegisterNetEvent('cnbt-inventory:client:splitSuccess')

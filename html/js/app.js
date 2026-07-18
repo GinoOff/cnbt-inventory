@@ -101,9 +101,22 @@ window.CNBT = (function () {
             case 'hideHotbarPreview':
                 hideHotbarPreview();
                 break;
-            // Equipment slot success (armor/parachute)
+            // Equipment slot success (parachute)
             case 'equipSlotSuccess':
                 handleEquipSlotSuccess(msg.data);
+                break;
+            // Gear (casco/giubbotto) equipaggiato o rimosso
+            case 'gearEquipped':
+            case 'gearUnequipped':
+                handleGearUpdate(msg.data);
+                break;
+            // Aggiornamento stato salute (cnbt-health:stateChanged)
+            case 'healthUpdate':
+                if (window.HealthPanel) window.HealthPanel.update(msg.state);
+                break;
+            // Esito trattamento medico (progressbar + consumo usi)
+            case 'treatmentResult':
+                if (window.HealthPanel) window.HealthPanel.handleTreatmentResult(msg.result);
                 break;
             // Gunsmith messages
             case 'openGunsmith':
@@ -215,6 +228,17 @@ window.CNBT = (function () {
             showExternalInventory(msg.externalInv);
         } else {
             hideExternalInventory();
+        }
+
+        // Gear (casco/giubbotto) della scheda Vestiario
+        if (window.UtilityPanel) {
+            window.UtilityPanel.setEquipment(pd.equipment || {});
+        }
+
+        // Dati del pannello salute (scheda Salute); null se cnbt-health
+        // non e' avviato
+        if (window.HealthPanel) {
+            window.HealthPanel.setData(msg.healthData || null);
         }
 
         updateWeightDisplays();
@@ -381,10 +405,25 @@ window.CNBT = (function () {
         // Render the equipped item in the slot
         if (data.item) {
             const def = itemDefs[data.item.name];
-            const slotId = data.slot === 'armor' ? 'equip-armor' : 'equip-parachute';
             if (window.UtilityPanel) {
-                window.UtilityPanel.renderEquipSlot(slotId, data.item, def);
+                window.UtilityPanel.renderEquipSlot('equip-parachute', data.item, def);
             }
+        }
+        updateWeightDisplays();
+    }
+
+    // Gear (casco/giubbotto) equipaggiato/rimosso: il server rimanda
+    // equipment aggiornato + contenuto delle griglie coinvolte
+    function handleGearUpdate(data) {
+        if (!data) return;
+        if (window.UtilityPanel) {
+            window.UtilityPanel.setEquipment(data.equipment || {});
+        }
+        if (playerGrid && data.playerItems) {
+            playerGrid.loadItems(data.playerItems);
+        }
+        if (backpackGrid && data.backpackItems) {
+            backpackGrid.loadItems(data.backpackItems);
         }
         updateWeightDisplays();
     }
@@ -1488,5 +1527,6 @@ window.CNBT = (function () {
         getItemDefs: function () { return itemDefs; },
         itemPassesFilter,
         reloadPlayerItems,
+        showContextMenu,
     };
 })();

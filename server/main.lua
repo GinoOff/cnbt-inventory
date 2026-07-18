@@ -82,13 +82,32 @@ end
 -- DATABASE
 -- ============================================
 
+-- Ensure the equipment column exists (auto-migration for older installs)
+CreateThread(function()
+    local ok, err = pcall(function()
+        local col = MySQL.query.await([[
+            SELECT COLUMN_NAME FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'cnbt_inventories'
+              AND COLUMN_NAME = 'equipment'
+        ]])
+        if not col or #col == 0 then
+            MySQL.query.await('ALTER TABLE `cnbt_inventories` ADD COLUMN `equipment` LONGTEXT DEFAULT NULL')
+            print('[cnbt-inventory] Migrated: added equipment column to cnbt_inventories')
+        end
+    end)
+    if not ok then
+        print('[cnbt-inventory] Equipment column migration failed: ' .. tostring(err))
+    end
+end)
+
 function loadInventory(owner, invType)
     local key = getCacheKey(owner, invType)
     if inventories[key] then
         return inventories[key]
     end
 
-    local result = MySQL.query.await('SELECT items, backpack, hotbar FROM cnbt_inventories WHERE owner = ? AND inv_type = ?', { owner, invType })
+    local result = MySQL.query.await('SELECT items, backpack, hotbar, equipment FROM cnbt_inventories WHERE owner = ? AND inv_type = ?', { owner, invType })
 
     local inv
     if result and #result > 0 then
@@ -97,13 +116,15 @@ function loadInventory(owner, invType)
             items = json.decode(row.items) or {},
             backpack = row.backpack and json.decode(row.backpack) or nil,
             hotbar = json.decode(row.hotbar) or {},
+            equipment = row.equipment and json.decode(row.equipment) or {},
         }
     else
-        inv = { items = {}, backpack = nil, hotbar = {} }
+        inv = { items = {}, backpack = nil, hotbar = {}, equipment = {} }
         MySQL.insert.await('INSERT IGNORE INTO cnbt_inventories (owner, inv_type, items, backpack, hotbar) VALUES (?, ?, ?, ?, ?)', {
             owner, invType, '[]', nil, '[]'
         })
     end
+    inv.equipment = inv.equipment or {}
 
     inventories[key] = inv
     return inv
@@ -120,10 +141,12 @@ function saveInventory(owner, invType)
         return
     end
 
-    MySQL.update('UPDATE cnbt_inventories SET items = ?, backpack = ?, hotbar = ? WHERE owner = ? AND inv_type = ?', {
+    local hasEquipment = inv.equipment and next(inv.equipment) ~= nil
+    MySQL.update('UPDATE cnbt_inventories SET items = ?, backpack = ?, hotbar = ?, equipment = ? WHERE owner = ? AND inv_type = ?', {
         json.encode(inv.items),
         inv.backpack and json.encode(inv.backpack) or nil,
         json.encode(inv.hotbar),
+        hasEquipment and json.encode(inv.equipment) or nil,
         owner, invType,
     })
     saveDirty[key] = nil
@@ -299,6 +322,7 @@ AddEventHandler('cnbt-inventory:server:requestOpen', function(externalData)
         items = inv.items,
         backpack = inv.backpack,
         hotbar = inv.hotbar,
+        equipment = inv.equipment or {},
         cols = Config.PlayerCols,
         rows = Config.PlayerRows,
         maxWeight = Config.MaxWeight,
@@ -875,7 +899,8 @@ AddEventHandler('cnbt-inventory:server:unequipBackpack', function()
     TriggerClientEvent('cnbt-inventory:client:backpackUnequipped', src, inv.items)
 end)
 
--- Equip armor / parachute slot
+-- Equip parachute slot (consumabile). Caschi e giubbotti passano dal
+-- sistema gear qui sotto (scheda Vestiario, persistiti in equipment).
 RegisterNetEvent('cnbt-inventory:server:equipSlot')
 AddEventHandler('cnbt-inventory:server:equipSlot', function(data)
     local src = source
@@ -884,7 +909,7 @@ AddEventHandler('cnbt-inventory:server:equipSlot', function(data)
     local identifier = xPlayer.identifier
 
     local slot = data.slot
-    if slot ~= 'armor' and slot ~= 'parachute' then return end
+    if slot ~= 'parachute' then return end
 
     local inv = loadInventory(identifier, 'player')
     local itemIndex = data.itemIndex
@@ -904,18 +929,221 @@ AddEventHandler('cnbt-inventory:server:equipSlot', function(data)
     table.remove(inv.items, itemIndex)
     markDirty(identifier, 'player')
 
-    -- Apply effect
-    if slot == 'armor' then
-        TriggerClientEvent('cnbt-inventory:client:applyArmor', src, item)
-    elseif slot == 'parachute' then
-        TriggerClientEvent('cnbt-inventory:client:applyParachute', src, item)
-    end
+    TriggerClientEvent('cnbt-inventory:client:applyParachute', src, item)
 
     TriggerClientEvent('cnbt-inventory:client:equipSlotSuccess', src, {
         slot = slot,
         item = item,
         updatedItems = inv.items,
     })
+end)
+
+-- ============================================
+-- GEAR: CASCO / GIUBBOTTO (scheda Vestiario)
+-- ============================================
+--
+-- L'equipaggiamento indossato vive in inv.equipment = {
+--   helmet = { name, metadata } | nil,
+--   vest   = { name, metadata } | nil,
+-- } ed e' persistito nella colonna equipment. Ad ogni cambio viene
+-- notificato cnbt-clothes, che applica estetica/armatura e usa lo stato
+-- per risolvere i colpi (morte/coma/tank, abrasioni).
+
+local GEAR_SLOTS = { helmet = true, vest = true }
+
+local function notifyClothesGearChanged(src, slot, item)
+    if GetResourceState('cnbt-clothes') ~= 'started' then return end
+    TriggerEvent('cnbt-clothes:server:gearChanged', src, slot, item)
+end
+
+local function gearStateMessage(inv, slot, extra)
+    local msg = {
+        slot = slot,
+        equipment = inv.equipment or {},
+        playerItems = inv.items,
+        backpackItems = inv.backpack and inv.backpack.items or nil,
+    }
+    if extra then
+        for k, v in pairs(extra) do msg[k] = v end
+    end
+    return msg
+end
+
+RegisterNetEvent('cnbt-inventory:server:equipGear')
+AddEventHandler('cnbt-inventory:server:equipGear', function(data)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    local slot = data and data.slot
+    if not slot or not GEAR_SLOTS[slot] then return end
+
+    local inv = loadInventory(identifier, 'player')
+    local gridLabel = (data.grid == 'backpack') and 'backpack' or 'player'
+    local gridItems
+    if gridLabel == 'backpack' and inv.backpack then
+        gridItems = inv.backpack.items
+    else
+        gridItems = inv.items
+        gridLabel = 'player'
+    end
+
+    local itemIndex = tonumber(data.itemIndex)
+    local item = itemIndex and gridItems[itemIndex] or nil
+    if not item then
+        TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
+        return
+    end
+
+    local def = getItemDef(item.name)
+    if not def or def.category ~= slot then
+        TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
+        return
+    end
+
+    inv.equipment = inv.equipment or {}
+
+    -- Togli il nuovo pezzo dalla griglia (libera anche le sue celle per
+    -- l'eventuale swap con il pezzo attualmente indossato)
+    table.remove(gridItems, itemIndex)
+
+    -- Slot gia' occupato: rimetti il pezzo attuale nell'inventario (swap)
+    local current = inv.equipment[slot]
+    if current then
+        local curDef = getItemDef(current.name)
+        local placed = false
+        if curDef then
+            local targetItems = inv.items
+            local x, y, rotated = findFreePosition(inv.items, Config.PlayerCols, Config.PlayerRows, curDef.sizeX, curDef.sizeY)
+            if not x and inv.backpack then
+                local bpDef = Config.Backpacks[inv.backpack.name]
+                if bpDef then
+                    x, y, rotated = findFreePosition(inv.backpack.items, bpDef.cols, bpDef.rows, curDef.sizeX, curDef.sizeY)
+                    targetItems = inv.backpack.items
+                end
+            end
+            if x then
+                table.insert(targetItems, {
+                    name = current.name, x = x, y = y, rotated = rotated,
+                    count = 1, metadata = current.metadata or {},
+                })
+                placed = true
+            end
+        end
+        if not placed then
+            -- Niente spazio per lo swap: annulla tutto
+            table.insert(gridItems, itemIndex, item)
+            TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
+            return
+        end
+    end
+
+    inv.equipment[slot] = { name = item.name, metadata = item.metadata or {} }
+    markDirty(identifier, 'player')
+
+    notifyClothesGearChanged(src, slot, inv.equipment[slot])
+    TriggerClientEvent('cnbt-inventory:client:gearEquipped', src,
+        gearStateMessage(inv, slot))
+end)
+
+RegisterNetEvent('cnbt-inventory:server:unequipGear')
+AddEventHandler('cnbt-inventory:server:unequipGear', function(data)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local identifier = xPlayer.identifier
+
+    local slot = data and data.slot
+    if not slot or not GEAR_SLOTS[slot] then return end
+
+    local inv = loadInventory(identifier, 'player')
+    local current = inv.equipment and inv.equipment[slot]
+    if not current then return end
+
+    local def = getItemDef(current.name)
+    if def then
+        -- Trova spazio nell'inventario (prima player, poi zaino)
+        local targetItems = inv.items
+        local x, y, rotated = findFreePosition(inv.items, Config.PlayerCols, Config.PlayerRows, def.sizeX, def.sizeY)
+        if not x and inv.backpack then
+            local bpDef = Config.Backpacks[inv.backpack.name]
+            if bpDef then
+                x, y, rotated = findFreePosition(inv.backpack.items, bpDef.cols, bpDef.rows, def.sizeX, def.sizeY)
+                targetItems = inv.backpack.items
+            end
+        end
+        if not x then
+            TriggerClientEvent('cnbt-inventory:client:moveFailed', src)
+            return
+        end
+        table.insert(targetItems, {
+            name = current.name, x = x, y = y, rotated = rotated,
+            count = 1, metadata = current.metadata or {},
+        })
+    end
+
+    inv.equipment[slot] = nil
+    markDirty(identifier, 'player')
+
+    notifyClothesGearChanged(src, slot, nil)
+    TriggerClientEvent('cnbt-inventory:client:gearUnequipped', src,
+        gearStateMessage(inv, slot))
+end)
+
+-- ---------- Exports gear (usati da cnbt-clothes) ----------
+
+exports('GetEquipment', function(identifier)
+    local inv = loadInventory(identifier, 'player')
+    return inv.equipment or {}
+end)
+
+exports('UpdateGearMetadata', function(identifier, slot, metadata)
+    local inv = loadInventory(identifier, 'player')
+    if not inv.equipment or not inv.equipment[slot] then return false end
+    inv.equipment[slot].metadata = metadata or {}
+    markDirty(identifier, 'player')
+    return true
+end)
+
+-- Rimuove il pezzo equipaggiato: destroy = true lo distrugge (giubbotto
+-- rotto), altrimenti prova a rimetterlo nell'inventario.
+exports('RemoveEquippedGear', function(identifier, slot, destroy)
+    local inv = loadInventory(identifier, 'player')
+    if not inv.equipment or not inv.equipment[slot] then return false end
+    local current = inv.equipment[slot]
+
+    if not destroy then
+        local def = getItemDef(current.name)
+        if def then
+            local targetItems = inv.items
+            local x, y, rotated = findFreePosition(inv.items, Config.PlayerCols, Config.PlayerRows, def.sizeX, def.sizeY)
+            if not x and inv.backpack then
+                local bpDef = Config.Backpacks[inv.backpack.name]
+                if bpDef then
+                    x, y, rotated = findFreePosition(inv.backpack.items, bpDef.cols, bpDef.rows, def.sizeX, def.sizeY)
+                    targetItems = inv.backpack.items
+                end
+            end
+            if x then
+                table.insert(targetItems, {
+                    name = current.name, x = x, y = y, rotated = rotated,
+                    count = 1, metadata = current.metadata or {},
+                })
+            end
+        end
+    end
+
+    inv.equipment[slot] = nil
+    markDirty(identifier, 'player')
+
+    -- Aggiorna la NUI se il player e' online
+    local xPlayer = ESX.GetPlayerFromIdentifier(identifier)
+    if xPlayer then
+        TriggerClientEvent('cnbt-inventory:client:gearUnequipped', xPlayer.source,
+            gearStateMessage(inv, slot, { destroyed = destroy == true }))
+    end
+    return true
 end)
 
 -- Update hotbar

@@ -1,15 +1,19 @@
 /**
- * CNBT Inventory - Utility Panel
+ * CNBT Inventory - Utility Panel (tabbed: Vestiario / Salute)
  *
- * Left-side panel with equipment slots (backpack, armor, parachute),
- * an interactive SVG body figure for toggling clothing, and the
- * backpack contents grid (moved from player panel).
+ * Chrome-style tabs on the left panel:
+ *   - VESTIARIO: equipment slots (casco, zaino, giubbotto, paracadute),
+ *     interactive SVG body for toggling clothing, backpack grid. Helmet
+ *     and vest items are equipped by dragging them from the inventory
+ *     onto their slot or onto the stickman (head / torso).
+ *   - SALUTE: medical stickman + bars (see health.js).
  */
 
 'use strict';
 
 window.UtilityPanel = (function () {
     let isOpen = false;
+    let activeTab = 'clothing';
 
     // Body parts the player can click to toggle clothing
     const BODY_ZONES = [
@@ -25,8 +29,43 @@ window.UtilityPanel = (function () {
         { id: 'ears',      label: 'Orecchie',    component: 'ears' },
     ];
 
+    // Zone of the body SVG that accept gear drops: slot -> zone id
+    const GEAR_DROP_ZONES = { helmet: 'head', vest: 'torso' };
+
     // Toggled-off components (set of component names)
     const toggledOff = new Set();
+
+    // Currently equipped gear: { helmet: {name, metadata}|null, vest: ... }
+    let equipment = {};
+
+    // ============================================
+    // TABS (chrome-style)
+    // ============================================
+
+    function switchTab(tab) {
+        if (tab !== 'clothing' && tab !== 'health') return;
+        activeTab = tab;
+
+        document.querySelectorAll('.utility-tab').forEach(function (btn) {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        const clothingEl = document.getElementById('utility-tab-clothing');
+        const healthEl = document.getElementById('utility-tab-health');
+        if (clothingEl) clothingEl.classList.toggle('hidden', tab !== 'clothing');
+        if (healthEl) healthEl.classList.toggle('hidden', tab !== 'health');
+
+        if (tab === 'health' && window.HealthPanel) {
+            window.HealthPanel.refresh();
+        }
+    }
+
+    function getActiveTab() {
+        return activeTab;
+    }
+
+    // ============================================
+    // BODY SVG (clothing tab)
+    // ============================================
 
     function buildSVG() {
         const container = document.getElementById('body-svg-container');
@@ -69,35 +108,7 @@ window.UtilityPanel = (function () {
 
         // Full body outline path (simplified human form)
         const outline = document.createElementNS(svgNS, 'path');
-        outline.setAttribute('d',
-            // Head
-            'M100,18 ' +
-            'C115,18 126,30 126,48 C126,66 115,78 100,78 C85,78 74,66 74,48 C74,30 85,18 100,18 Z ' +
-            // Neck
-            'M90,78 L90,90 L110,90 L110,78 ' +
-            // Shoulders and torso
-            'M110,90 L140,100 Q155,105 155,118 L155,200 ' +
-            // Right arm
-            'L155,200 Q158,220 152,240 L145,270 Q140,285 142,295 L142,295 ' +
-            'L130,295 Q132,285 135,270 L140,245 Q145,225 142,210 ' +
-            // Right side torso to hips
-            'L142,210 L140,230 L135,260 ' +
-            // Right leg
-            'L138,300 L140,340 L142,370 Q143,385 138,395 L138,405 ' +
-            'L115,405 L115,395 L118,380 L120,340 L118,300 ' +
-            // Crotch
-            'L115,270 L100,265 L85,270 ' +
-            // Left leg
-            'L82,300 L80,340 L85,380 L85,395 L85,405 ' +
-            'L62,405 L62,395 Q57,385 58,370 L60,340 L62,300 ' +
-            // Left side torso
-            'L65,260 L60,230 L58,210 ' +
-            // Left arm
-            'Q55,225 60,245 L65,270 Q68,285 70,295 ' +
-            'L58,295 Q60,285 55,270 L48,240 Q42,220 45,200 ' +
-            // Left shoulder
-            'L45,118 Q45,105 60,100 L90,90'
-        );
+        outline.setAttribute('d', UtilityPanel.BODY_OUTLINE_PATH);
         outline.setAttribute('fill', 'none');
         outline.setAttribute('stroke', 'var(--accent)');
         outline.setAttribute('stroke-width', '2');
@@ -171,7 +182,7 @@ window.UtilityPanel = (function () {
     }
 
     function toggleClothing(zone) {
-        const el = document.querySelector('[data-zone="' + zone.id + '"]');
+        const el = document.querySelector('#body-svg [data-zone="' + zone.id + '"]');
         if (!el) return;
 
         if (toggledOff.has(zone.component)) {
@@ -191,12 +202,19 @@ window.UtilityPanel = (function () {
         }
     }
 
+    // ============================================
+    // OPEN / CLOSE
+    // ============================================
+
     function open() {
         const panel = document.getElementById('utility-panel');
         if (!panel) return;
         panel.classList.remove('hidden');
         isOpen = true;
         buildSVG();
+        renderGearSlots();
+        if (window.HealthPanel) window.HealthPanel.build();
+        switchTab(activeTab);
     }
 
     function close() {
@@ -211,7 +229,10 @@ window.UtilityPanel = (function () {
         else open();
     }
 
-    // Equipment slot rendering
+    // ============================================
+    // EQUIPMENT SLOT RENDERING
+    // ============================================
+
     function renderEquipSlot(slotId, item, def) {
         const el = document.getElementById(slotId);
         if (!el) return;
@@ -242,6 +263,91 @@ window.UtilityPanel = (function () {
         }
     }
 
+    // ============================================
+    // GEAR (casco / giubbotto)
+    // ============================================
+
+    function setEquipment(eq) {
+        equipment = eq || {};
+        if (isOpen) renderGearSlots();
+    }
+
+    function getEquipment() {
+        return equipment;
+    }
+
+    function renderGearSlots() {
+        renderGearSlot('helmet', 'equip-helmet');
+        renderGearSlot('vest', 'equip-vest');
+    }
+
+    function renderGearSlot(slot, slotId) {
+        const el = document.getElementById(slotId);
+        if (!el) return;
+
+        const item = equipment && equipment[slot];
+        const def = item && window.CNBT ? window.CNBT.getItemDef(item.name) : null;
+
+        renderEquipSlot(slotId, item, def);
+
+        if (item) {
+            // Durability badge (vests)
+            if (item.metadata && item.metadata.durability != null) {
+                const badge = document.createElement('span');
+                badge.className = 'equip-slot-badge';
+                badge.textContent = item.metadata.durability;
+                el.appendChild(badge);
+            }
+
+            // Right click to unequip
+            el.oncontextmenu = function (e) {
+                e.preventDefault();
+                if (window.CNBT && window.CNBT.showContextMenu) {
+                    window.CNBT.showContextMenu(e.clientX, e.clientY, [
+                        {
+                            label: slot === 'helmet' ? 'Togli Casco' : 'Togli Giubbotto',
+                            action: function () {
+                                window.CNBT.nuiCallback('unequipGear', { slot: slot });
+                            },
+                        },
+                    ]);
+                } else {
+                    window.CNBT.nuiCallback('unequipGear', { slot: slot });
+                }
+            };
+        } else {
+            el.oncontextmenu = null;
+        }
+    }
+
+    // Zona del body SVG che accetta il drop di un item gear (slot: 'helmet'|'vest')
+    function getGearZoneElement(slot) {
+        const zoneId = GEAR_DROP_ZONES[slot];
+        if (!zoneId) return null;
+        if (activeTab !== 'clothing' || !isOpen) return null;
+        return document.querySelector('#body-svg [data-zone="' + zoneId + '"]');
+    }
+
+    // True se il punto (x, y) cade sulla zona del corpo che accetta questo slot
+    function isPointOnGearZone(slot, x, y) {
+        const el = getGearZoneElement(slot);
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    }
+
+    function highlightGearZone(slot, on) {
+        const el = getGearZoneElement(slot);
+        if (!el) return;
+        el.classList.toggle('zone-gear-drop', !!on);
+    }
+
+    function clearGearZoneHighlights() {
+        document.querySelectorAll('#body-svg .zone-gear-drop').forEach(function (el) {
+            el.classList.remove('zone-gear-drop');
+        });
+    }
+
     // Reset clothing toggles (when inventory opens fresh)
     function resetToggles() {
         toggledOff.clear();
@@ -250,12 +356,17 @@ window.UtilityPanel = (function () {
         });
     }
 
-    // Init: wire the toggle button
+    // Init: wire the toggle button + tabs
     document.addEventListener('DOMContentLoaded', function () {
         const btn = document.getElementById('utility-toggle-btn');
         if (btn) {
             btn.addEventListener('click', toggle);
         }
+        document.querySelectorAll('.utility-tab').forEach(function (tabBtn) {
+            tabBtn.addEventListener('click', function () {
+                switchTab(tabBtn.dataset.tab);
+            });
+        });
     });
 
     return {
@@ -266,5 +377,42 @@ window.UtilityPanel = (function () {
         renderEquipSlot: renderEquipSlot,
         resetToggles: resetToggles,
         buildSVG: buildSVG,
+        switchTab: switchTab,
+        getActiveTab: getActiveTab,
+        setEquipment: setEquipment,
+        getEquipment: getEquipment,
+        renderGearSlots: renderGearSlots,
+        isPointOnGearZone: isPointOnGearZone,
+        highlightGearZone: highlightGearZone,
+        clearGearZoneHighlights: clearGearZoneHighlights,
+        // Path della silhouette, riusato anche dallo stickman della scheda Salute
+        BODY_OUTLINE_PATH:
+            // Head
+            'M100,18 ' +
+            'C115,18 126,30 126,48 C126,66 115,78 100,78 C85,78 74,66 74,48 C74,30 85,18 100,18 Z ' +
+            // Neck
+            'M90,78 L90,90 L110,90 L110,78 ' +
+            // Shoulders and torso
+            'M110,90 L140,100 Q155,105 155,118 L155,200 ' +
+            // Right arm
+            'L155,200 Q158,220 152,240 L145,270 Q140,285 142,295 L142,295 ' +
+            'L130,295 Q132,285 135,270 L140,245 Q145,225 142,210 ' +
+            // Right side torso to hips
+            'L142,210 L140,230 L135,260 ' +
+            // Right leg
+            'L138,300 L140,340 L142,370 Q143,385 138,395 L138,405 ' +
+            'L115,405 L115,395 L118,380 L120,340 L118,300 ' +
+            // Crotch
+            'L115,270 L100,265 L85,270 ' +
+            // Left leg
+            'L82,300 L80,340 L85,380 L85,395 L85,405 ' +
+            'L62,405 L62,395 Q57,385 58,370 L60,340 L62,300 ' +
+            // Left side torso
+            'L65,260 L60,230 L58,210 ' +
+            // Left arm
+            'Q55,225 60,245 L65,270 Q68,285 70,295 ' +
+            'L58,295 Q60,285 55,270 L48,240 Q42,220 45,200 ' +
+            // Left shoulder
+            'L45,118 Q45,105 60,100 L90,90',
     };
 })();
